@@ -34,6 +34,7 @@
                 <li><a href="#" id="navMake">Make My Phostory</a></li>
                 <li><a href="#" id="navShare">Share My Phostory</a></li>
                 <li><a href="#" id="navAbout">About Us</a></li>
+                <li><a href="#" id="navSettings" style="display: none;">Settings</a></li>
             </ul>
         </nav>
     </header>
@@ -290,6 +291,78 @@
             </div>
         </div>
     </div>
+
+    <!-- Account Delete Confirm Modal (Refined & Compact) -->
+    <div class="modal-overlay" id="accDeleteModal">
+        <div class="modal-content modal-compact">
+            <div class="modal-icon-danger">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+            <h2>Delete Account</h2>
+            <p class="modal-subtitle-compact">This will permanently remove all your posts and record. Proceed with caution.</p>
+            <div class="modal-actions-vertical">
+                <button class="btn-primary btn-danger btn-full" id="confirmAccDeleteActionBtn">Permanently Delete</button>
+                <button class="btn-ghost btn-full" id="cancelAccDeleteBtn">Keep My Account</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings content (hidden by default) -->
+    <main class="content-area settings-page-bg view-section" id="settingsView" style="display: none;">
+        <section class="settings-container-page">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <p class="subtitle">Manage your account information and privacy</p>
+            </div>
+            
+            <div class="settings-page-list">
+                <!-- Change ID -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <div class="settings-card-info">
+                            <h3>Change ID</h3>
+                            <p>Update your unique @username for login and profile</p>
+                        </div>
+                    </div>
+                    <div class="settings-card-body">
+                        <div class="input-modern">
+                            <label for="newIdInputPage">New ID</label>
+                            <input type="text" id="newIdInputPage" placeholder="Enter new ID (min 3 chars)">
+                            <div id="newIdStatusPage" class="input-hint"></div>
+                        </div>
+                        <button class="btn-primary" id="btnSaveIdPage">Update My ID</button>
+                    </div>
+                </div>
+
+                <!-- Change Password -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <div class="settings-card-info">
+                            <h3>Change Password</h3>
+                            <p>Update your password to keep your account secure</p>
+                        </div>
+                    </div>
+                    <div class="settings-card-body">
+                        <div class="input-modern">
+                            <label for="currentPwInputPage">Current Password</label>
+                            <input type="password" id="currentPwInputPage" placeholder="Enter current password for verification">
+                        </div>
+                        <div class="input-modern">
+                            <label for="newPwInputPage">New Password</label>
+                            <input type="password" id="newPwInputPage" placeholder="Enter new password (min 6 chars)">
+                        </div>
+                        <button class="btn-primary" id="btnSavePwPage">Update My Password</button>
+                    </div>
+                </div>
+
+                <!-- Minimalist Delete Account Footer -->
+                <div class="settings-footer">
+                    <p class="settings-footer-text">No longer need your Phostory?</p>
+                    <button class="btn-text-danger" id="btnConfirmDeleteAccPage">Delete Account permanently</button>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <!-- Toast notification container -->
     <div id="toastContainer" class="toast-container"></div>
@@ -567,20 +640,28 @@
         // 5. Check user session on reload
         async function checkUser() {
             const { data: { session } } = await supabase.auth.getSession();
+            const navSettingsBtn = document.getElementById('navSettings');
             if (session) {
                 navLoginBtn.textContent = 'Logout';
+                if (navSettingsBtn) navSettingsBtn.style.display = 'block';
+            } else {
+                navLoginBtn.textContent = 'Login';
+                if (navSettingsBtn) navSettingsBtn.style.display = 'none';
             }
         }
         checkUser();
+        
+        // Listen for auth state changes
+        supabase.auth.onAuthStateChange(() => {
+            checkUser();
+        });
 
         // 6. SPA routing logic (Home <-> About Us <-> Make My Phostory view switching)
-        const homeView = document.getElementById('homeView');
-        const aboutView = document.getElementById('aboutView');
-        const makeView = document.getElementById('makeView');
-        const shareView = document.getElementById('shareView');
+        const settingsView = document.getElementById('settingsView');
         const navAboutBtn = document.getElementById('navAbout');
         const navMakeBtn = document.getElementById('navMake');
         const navShareBtn = document.getElementById('navShare');
+        const navSettingsBtn = document.getElementById('navSettings');
         const navLogoBtn = document.getElementById('navLogo');
 
         function switchView(viewToShow) {
@@ -589,10 +670,11 @@
             aboutView.style.display = 'none';
             if (makeView) makeView.style.display = 'none';
             if (shareView) shareView.style.display = 'none';
+            if (settingsView) settingsView.style.display = 'none';
             if (document.getElementById('profilePageView')) document.getElementById('profilePageView').style.display = 'none';
             
             // Show selected view
-            if (viewToShow === aboutView || viewToShow === makeView || viewToShow === shareView) {
+            if (viewToShow === aboutView || viewToShow === makeView || viewToShow === shareView || viewToShow === settingsView) {
                 viewToShow.style.display = 'flex';
             } else if (viewToShow === document.getElementById('profilePageView')) {
                 viewToShow.style.display = 'block';
@@ -1102,6 +1184,172 @@
                 };
 
                 closeBtn.onclick = () => {
+                    cleanup();
+                    resolve(false);
+                };
+            });
+        }
+
+        // --- Settings Page Logic ---
+        const navSettingsBtnPage = document.getElementById('navSettings');
+        
+        const btnSaveIdPage = document.getElementById('btnSaveIdPage');
+        const btnSavePwPage = document.getElementById('btnSavePwPage');
+        const btnConfirmDeleteAccPage = document.getElementById('btnConfirmDeleteAccPage');
+
+        const newIdInputPage = document.getElementById('newIdInputPage');
+        const newIdStatusPage = document.getElementById('newIdStatusPage');
+        const newPwInputPage = document.getElementById('newPwInputPage');
+
+        navSettingsBtnPage.addEventListener('click', (e) => {
+            e.preventDefault();
+            dropdownMenu.classList.remove('active');
+            menuToggle.classList.remove('active');
+            switchView(settingsView);
+        });
+
+        // 1. Change ID logic (Updates username in profiles)
+        btnSaveIdPage.addEventListener('click', async () => {
+            const newUsername = newIdInputPage.value.trim().replace(/^@/, '');
+            if (newUsername.length < 3) {
+                showToast('ID must be at least 3 characters.', 'error');
+                return;
+            }
+
+            btnSaveIdPage.disabled = true;
+            btnSaveIdPage.textContent = 'Saving...';
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) throw new Error('Not logged in');
+
+                // Check for uniqueness
+                const { data: existing } = await supabase.from('profiles').select('username').eq('username', newUsername).maybeSingle();
+                if (existing) throw new Error('This ID is already taken.');
+
+                const { error } = await supabase.from('profiles').update({ username: newUsername }).eq('id', session.user.id);
+                if (error) throw error;
+
+                showToast('ID successfully changed! Use this ID for your next login.');
+                newIdInputPage.value = '';
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                btnSaveIdPage.disabled = false;
+                btnSaveIdPage.textContent = 'Update My ID';
+            }
+        });
+
+        // 2. Change Password logic (Verify old password first)
+        btnSavePwPage.addEventListener('click', async () => {
+            const currentPassword = document.getElementById('currentPwInputPage').value.trim();
+            const newPassword = newPwInputPage.value.trim();
+            
+            if (!currentPassword) {
+                showToast('Please enter your current password.', 'error');
+                return;
+            }
+            if (newPassword.length < 6) {
+                showToast('New password must be at least 6 characters.', 'error');
+                return;
+            }
+
+            btnSavePwPage.disabled = true;
+            btnSavePwPage.textContent = 'Verifying...';
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) throw new Error('Not logged in');
+
+                // Re-authenticate to verify current password
+                const { error: verifyError } = await supabase.auth.signInWithPassword({
+                    email: session.user.email,
+                    password: currentPassword,
+                });
+
+                if (verifyError) {
+                    throw new Error('Current password is incorrect.');
+                }
+
+                btnSavePwPage.textContent = 'Updating...';
+
+                // Now update to new password
+                const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+                if (updateError) throw updateError;
+
+                showToast('Password successfully updated!');
+                document.getElementById('currentPwInputPage').value = '';
+                newPwInputPage.value = '';
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                btnSavePwPage.disabled = false;
+                btnSavePwPage.textContent = 'Update My Password';
+            }
+        });
+
+        // 3. Delete Account logic (Physical deletion with custom modal)
+        btnConfirmDeleteAccPage.addEventListener('click', async () => {
+            const isConfirmed = await showAccConfirm();
+            if (!isConfirmed) return;
+
+            btnConfirmDeleteAccPage.disabled = true;
+            btnConfirmDeleteAccPage.textContent = 'Deleting All Data...';
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) throw new Error('Not logged in');
+
+                // 1. Delete all posts from DB
+                const { error: postsErr } = await supabase.from('posts').delete().eq('user_id', session.user.id);
+                if (postsErr) throw postsErr;
+
+                // 2. Delete profile from DB
+                const { error: profileErr } = await supabase.from('profiles').delete().eq('id', session.user.id);
+                if (profileErr) throw profileErr;
+
+                // 3. Delete Auth User (RPC)
+                const { error: authErr } = await supabase.rpc('delete_user_self');
+                
+                if (authErr) {
+                    console.error('Auth deletion error:', authErr);
+                    await supabase.auth.signOut();
+                    showToast('Data deleted, but user account needs manual removal or RPC setup. (Logged out)');
+                } else {
+                    await supabase.auth.signOut();
+                    showToast('All your data and account have been permanently deleted.');
+                }
+                
+                switchView(homeView);
+            } catch (err) {
+                showToast('Deletion error: ' + err.message, 'error');
+            } finally {
+                btnConfirmDeleteAccPage.disabled = false;
+                btnConfirmDeleteAccPage.textContent = 'Delete My Account Permanently';
+            }
+        });
+
+        // Helper for Account Delete Confirmation Modal
+        function showAccConfirm() {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('accDeleteModal');
+                const confirmBtn = document.getElementById('confirmAccDeleteActionBtn');
+                const cancelBtn = document.getElementById('cancelAccDeleteBtn');
+                
+                modal.classList.add('active');
+
+                const cleanup = () => {
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    modal.classList.remove('active');
+                };
+
+                confirmBtn.onclick = () => {
+                    cleanup();
+                    resolve(true);
+                };
+
+                cancelBtn.onclick = () => {
                     cleanup();
                     resolve(false);
                 };
