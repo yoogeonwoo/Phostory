@@ -94,7 +94,7 @@
             <form id="makeForm" class="make-form">
                 <!-- 이미지 업로드 영역 -->
                 <div class="upload-area">
-                    <input type="file" id="photoInput" accept="image/*" class="file-input" required>
+                    <input type="file" id="photoInput" accept="image/jpeg, image/png, image/webp, image/gif" class="file-input" required>
                     <div class="upload-placeholder">
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="upload-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                         <span>Click or drag image to upload</span>
@@ -170,13 +170,8 @@
                         </div>
                         
                         <!-- Mini Masonry Grid -->
-                        <div class="mini-masonry">
-                            <div class="mini-card"><img src="https://picsum.photos/seed/pr1/300/400" alt="post"></div>
-                            <div class="mini-card"><img src="https://picsum.photos/seed/pr2/300/250" alt="post"></div>
-                            <div class="mini-card"><img src="https://picsum.photos/seed/pr3/300/350" alt="post"></div>
-                            <div class="mini-card"><img src="https://picsum.photos/seed/pr4/300/300" alt="post"></div>
-                            <div class="mini-card"><img src="https://picsum.photos/seed/pr5/300/450" alt="post"></div>
-                            <div class="mini-card"><img src="https://picsum.photos/seed/pr6/300/200" alt="post"></div>
+                        <div class="mini-masonry" id="miniMasonry">
+                            <div class="mini-card" style="grid-column: span 2; text-align: center; color: #888; font-size: 14px; padding: 20px;">Fetching your posts...</div>
                         </div>
                     </div>
                 </div>
@@ -414,6 +409,24 @@
             if (previewUsername) previewUsername.textContent = `@${emailPrefix}`;
             
             switchView(shareView);
+
+            // 미니 그리드(나의 포스트) 실제 데이터 렌더링
+            const miniMasonry = document.getElementById('miniMasonry');
+            if (miniMasonry) {
+                miniMasonry.innerHTML = '<div style="grid-column: span 2; text-align: center; color: #888; font-size: 14px; padding: 20px;">Loading...</div>';
+                const myPhotos = await fetchPosts(session.user.id);
+                miniMasonry.innerHTML = '';
+                if (myPhotos.length === 0) {
+                    miniMasonry.innerHTML = '<div style="grid-column: span 2; text-align: center; color: #888; font-size: 14px; padding: 20px;">No posts yet.</div>';
+                } else {
+                    myPhotos.slice(0, 10).forEach(photo => {
+                        const miniCard = document.createElement('div');
+                        miniCard.className = 'mini-card';
+                        miniCard.innerHTML = `<img src="${photo.url}" alt="${photo.title}" loading="lazy">`;
+                        miniMasonry.appendChild(miniCard);
+                    });
+                }
+            }
         });
 
         // 링크 복사 기능
@@ -438,15 +451,14 @@
             switchView(homeView);
         });
 
-        // 7. 메인 페이지 Masonry 그리드 더미 데이터 생성 및 렌더링
+        // 7. 메인 페이지 및 프리뷰 렌더링 로직 (Supabase 연동)
         const masonryGrid = document.getElementById('masonryGrid');
         
-        // 고해상도 샘플 더미 데이터 (unsplash/picsum) - 카테고리별 동적 생성
+        // 고해상도 샘플 더미 데이터 (비상용 또는 데이터 텅 비었을 때 전시용)
         function getDummyPhotos(category = 'All') {
-            const count = category === 'All' ? 16 : Math.floor(Math.random() * 5) + 8; // 카테고리 선택 시 8~12개 출력
+            const count = category === 'All' ? 8 : 4; 
             return Array.from({ length: count }, (_, i) => {
                 const randomHeight = Math.floor(Math.random() * 400) + 600;
-                // 카테고리마다 다른 사진이 나오도록 시드 변경
                 const seed = category + i + Math.random(); 
                 const catTitle = category === 'All' ? 'Moments' : category;
                 return {
@@ -459,22 +471,55 @@
             });
         }
 
-        function renderGrid(category = 'All') {
-            const dummyPhotos = getDummyPhotos(category);
+        // Supabase에서 게시물 가져오기
+        async function fetchPosts(userId = null) {
+            try {
+                let query = supabase.from('posts').select('*').order('created_at', { ascending: false });
+                
+                if (userId) {
+                    query = query.eq('user_id', userId); // 내 프로필 보기: 내 진짜 게시물 모두 가져오기 (비공개 포함)
+                } else {
+                    query = query.eq('is_public', true); // 메인 페이지: 전체공개로 설정된 것만 보여주기
+                }
+                
+                const { data: realPosts, error } = await query;
+                if (error) throw error;
+                
+                return realPosts.map(post => ({
+                    id: post.id,
+                    url: post.image_url,
+                    title: post.title,
+                    author: post.user_id ? 'Creator' : 'Unknown', 
+                    avatar: `https://i.pravatar.cc/150?u=${post.user_id}`
+                }));
+            } catch (err) {
+                console.error('Fetch error:', err);
+                return []; 
+            }
+        }
+
+        async function renderGrid(category = 'All') {
+            masonryGrid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #888;">Loading stories...</div>';
+            
+            // DB에서 퍼블릭 게시물 로드
+            let photos = await fetchPosts(); 
+            
+            // 등록된 실 데이터가 아예 없거나 오류가 났다면 빈 화면 방지를 위해 더미 데이터 렌더링
+            if (photos.length === 0) {
+                photos = getDummyPhotos(category);
+            }
+            
             masonryGrid.innerHTML = '';
             
-            dummyPhotos.forEach(photo => {
+            photos.forEach(photo => {
                 const card = document.createElement('div');
                 card.className = 'photo-card fade-in';
-                // 약간의 시간차를 두어 fade-in 효과 연출 (지연율 랜덤)
                 card.style.animationDelay = `${Math.random() * 0.4}s`;
 
                 card.innerHTML = `
                     <div class="card-image-wrapper">
-                        <!-- 이미지 로딩을 위한 스켈레톤/비율 유지 트릭 대신 직접 img 사용 (간단화) -->
                         <img src="${photo.url}" alt="${photo.title}" loading="lazy">
                     </div>
-                    <!-- 프리미엄 글래스모피즘 오버레이 -->
                     <div class="glass-overlay">
                         <div class="overlay-content">
                             <h3 class="photo-title">${photo.title}</h3>
@@ -485,7 +530,6 @@
                                 </div>
                                 <div class="action-buttons">
                                     <button class="btn-icon like-btn" aria-label="Like" title="Like">
-                                        <!-- Heart SVG (간단한 아이콘) -->
                                         <svg class="heart-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                                     </button>
                                 </div>
@@ -494,23 +538,19 @@
                     </div>
                 `;
                 
-                // 좋아요 버튼에 이벤트 설정
                 const likeBtn = card.querySelector('.like-btn');
                 likeBtn.addEventListener('click', (e) => {
                     e.preventDefault(); 
-                    e.stopPropagation(); // 버튼 클릭이 부모 요소(카드 전체)로 전파되는 것 방지
-                    
+                    e.stopPropagation();
                     const heartIcon = likeBtn.querySelector('.heart-icon');
                     likeBtn.classList.toggle('active');
                     
                     if (likeBtn.classList.contains('active')) {
-                        // 눌렸을 때 시각적 효과 (빨간 하트)
                         heartIcon.style.fill = '#ff4b4b';
                         heartIcon.style.stroke = '#ff4b4b';
                         likeBtn.style.transform = 'scale(1.2)';
-                        setTimeout(() => likeBtn.style.transform = '', 200); // 약간의 팝핑 애니메이션
+                        setTimeout(() => likeBtn.style.transform = '', 200);
                     } else {
-                        // 취소했을 때 원상복구
                         heartIcon.style.fill = 'none';
                         heartIcon.style.stroke = 'currentColor';
                     }
@@ -570,13 +610,11 @@
         photoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    photoPreview.src = e.target.result;
-                    photoPreview.style.display = 'block';
-                    uploadPlaceholder.style.display = 'none';
-                }
-                reader.readAsDataURL(file);
+                // 모바일 메모리 부하 방지를 위해 createObjectURL 사용 (Data URL 변환 시 브라우저 크래시 방지)
+                const imageUrl = URL.createObjectURL(file);
+                photoPreview.src = imageUrl;
+                photoPreview.style.display = 'block';
+                uploadPlaceholder.style.display = 'none';
             }
         });
 
@@ -605,13 +643,21 @@
 
             try {
                 // 1. Supabase Storage에 이미지 업로드 (버킷 이름: 'photos')
-                const fileExt = file.name.split('.').pop();
+                let fileExt = file.name.split('.').pop().toLowerCase();
+                // 모바일 환경 등에서 확장자를 알 수 없거나 한글/특수한 문자로 오는 경우 MIME 타입으로 대체
+                if (fileExt === file.name.toLowerCase() || !/^[a-z0-9]+$/.test(fileExt)) {
+                    fileExt = file.type.split('/')[1] || 'jpg';
+                }
                 const fileName = `${Date.now()}-${Math.floor(Math.random()*1000)}.${fileExt}`;
                 const filePath = `${session.user.id}/${fileName}`;
                 
                 const { error: uploadError, data } = await supabase.storage
                     .from('photos')
-                    .upload(filePath, file);
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false,
+                        contentType: file.type || 'image/jpeg'
+                    });
 
                 if (uploadError) throw uploadError;
 
