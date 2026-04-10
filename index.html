@@ -446,9 +446,11 @@
                         miniCard.querySelector('.edit-btn').addEventListener('click', async () => {
                             const newTitle = await showPrompt('수정할 새로운 제목을 입력하세요:', photo.title);
                             if (newTitle !== null && newTitle.trim() !== '') {
-                                const { error } = await supabase.from('posts').update({ title: newTitle.trim() }).eq('id', photo.id);
+                                const { data, error } = await supabase.from('posts').update({ title: newTitle.trim() }).eq('id', photo.id).select();
                                 if (error) {
                                     alert('제목 수정 중 오류 발생: ' + error.message);
+                                } else if (!data || data.length === 0) {
+                                    alert('서버에서 수정이 거부되었습니다.\nSupabase 대시보드 -> Authentication -> Policies에서 "posts" 테이블의 Update 정책(Policy)이 있는지 확인해주세요.');
                                 } else {
                                     miniCard.querySelector('.mini-card-title').textContent = newTitle.trim();
                                     photo.title = newTitle.trim();
@@ -481,9 +483,13 @@
                                 }
 
                                 // 3. Supabase DB (posts 테이블)에서 레코드 데이터 삭제
-                                const { error } = await supabase.from('posts').delete().eq('id', photo.id);
+                                const { data, error } = await supabase.from('posts').delete().eq('id', photo.id).select();
                                 if (error) {
                                     alert('게시물 삭제 중 오류 발생: ' + error.message);
+                                    deleteBtn.textContent = originalText;
+                                    deleteBtn.disabled = false;
+                                } else if (!data || data.length === 0) {
+                                    alert('서버에서 삭제가 거부되었습니다!\nSupabase 대시보드 -> Authentication -> Policies에서 "posts" 테이블의 Delete 권한(Policy)이 허용되어 있는지 확인해주세요.');
                                     deleteBtn.textContent = originalText;
                                     deleteBtn.disabled = false;
                                 } else {
