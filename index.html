@@ -489,13 +489,24 @@
 
                                 // 1. 파일 삭제를 위해 이미지 URL에서 스토리지 내부 경로 파싱
                                 let filePath = '';
-                                if (photo.url && photo.url.includes('/photos/')) {
-                                    filePath = photo.url.split('/photos/')[1];
+                                let targetBucket = 'photos'; // 기존 호환용 기본값
+                                
+                                if (photo.url) {
+                                    if (photo.url.includes('/public_photos/')) {
+                                        targetBucket = 'public_photos';
+                                        filePath = photo.url.split('/public_photos/')[1];
+                                    } else if (photo.url.includes('/private_photos/')) {
+                                        targetBucket = 'private_photos';
+                                        filePath = photo.url.split('/private_photos/')[1];
+                                    } else if (photo.url.includes('/photos/')) {
+                                        targetBucket = 'photos';
+                                        filePath = photo.url.split('/photos/')[1];
+                                    }
                                 }
                                 
                                 // 2. Supabase Storage (버킷)에서 실제 파일 삭제
                                 if (filePath) {
-                                    const { error: storageError } = await supabase.storage.from('photos').remove([filePath]);
+                                    const { error: storageError } = await supabase.storage.from(targetBucket).remove([filePath]);
                                     if (storageError) {
                                         console.error('스토리지 파일 삭제 오류:', storageError);
                                     }
@@ -547,21 +558,26 @@
             if (browserUrl) browserUrl.textContent = fullLink;
             if (previewUsername) previewUsername.textContent = `@${emailPrefix}`;
             
-            // 기존에 설정된 로컬 스토리지 정보가 있으면 불러오기
-            const savedBio = localStorage.getItem('phostory_bio');
-            const savedAvatar = localStorage.getItem('phostory_avatar');
-            
-            if (savedBio) {
-                document.getElementById('editBioInput').value = savedBio;
-                document.getElementById('previewBioText').textContent = savedBio;
+            // 1. Supabase 'profiles' 테이블에서 내 프로필 정보 가져오기
+            const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profileData) {
+                if (profileData.bio) {
+                    document.getElementById('editBioInput').value = profileData.bio;
+                    document.getElementById('previewBioText').textContent = profileData.bio;
+                }
+                if (profileData.avatar_url) {
+                    document.getElementById('editAvatarPreview').src = profileData.avatar_url;
+                    document.getElementById('previewAvatarImg').src = profileData.avatar_url;
+                }
             } else {
+                // 정보가 없으면 기본값 세팅
                 document.getElementById('editBioInput').value = 'Capturing the world through my lens.';
                 document.getElementById('previewBioText').textContent = 'Capturing the world through my lens.';
-            }
-
-            if (savedAvatar) {
-                document.getElementById('editAvatarPreview').src = savedAvatar;
-                document.getElementById('previewAvatarImg').src = savedAvatar;
             }
 
             switchView(shareView);
@@ -632,21 +648,78 @@
         });
 
         const saveProfileBtn = document.getElementById('saveProfileBtn');
-        saveProfileBtn.addEventListener('click', () => {
-            // 저장 버튼 클릭 시에만 로컬 스토리지에 확정
-            localStorage.setItem('phostory_bio', editBioInput.value);
-            if (pendingAvatarBase64) {
-                localStorage.setItem('phostory_avatar', pendingAvatarBase64);
-                pendingAvatarBase64 = null; // 초기화
+        saveProfileBtn.addEventListener('click', async () => {
+            makeSubmitBtn.disabled = true;
+            
+            // 저장 버튼 클릭 시 텍스트 변경
+            const originalText = saveProfileBtn.textContent;
+            saveProfileBtn.textContent = 'Saving...';
+            
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    alert('프로필을 저장하려면 로그인 상태여야 합니다.');
+                    saveProfileBtn.textContent = originalText;
+                    return;
+                }
+
+                // 1. 소개글 DB 업데이트
+                const { error: updateError } = await supabase
+                    .from('profiles')
+                    .update({ bio: editBioInput.value })
+                    .eq('id', session.user.id);
+                
+                if (updateError) throw updateError;
+                
+                // 2. 프로필 사진이 변경된 경우 Supabase 'profiles' 버킷에 업로드 및 DB 기록
+                const file = editAvatarInput.files[0];
+                if (file) {
+                    let fileExt = file.name.split('.').pop().toLowerCase();
+                    if (fileExt === file.name.toLowerCase() || !/^[a-z0-9]+$/.test(fileExt)) {
+                        fileExt = file.type.split('/')[1] || 'jpg';
+                    }
+                    const fileName = `avatar.${fileExt}`;
+                    const filePath = `${session.user.id}/${fileName}`;
+                    
+                    const { error: uploadError } = await supabase.storage
+                        .from('profiles')
+                        .upload(filePath, file, {
+                            cacheControl: '3600',
+                            upsert: true,
+                            contentType: file.type || 'image/jpeg'
+                        });
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('profiles')
+                        .getPublicUrl(filePath);
+                        
+                    const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+
+                    // DB에 아바타 URL 저장
+                    const { error: avatarDbError } = await supabase
+                        .from('profiles')
+                        .update({ avatar_url: cacheBustedUrl })
+                        .eq('id', session.user.id);
+                    
+                    if (avatarDbError) throw avatarDbError;
+                    
+                    editAvatarPreview.src = cacheBustedUrl;
+                    previewAvatarImg.src = cacheBustedUrl;
+                }
+            } catch (error) {
+                alert('프로필 저장 오류: ' + error.message);
+            } finally {
+                makeSubmitBtn.disabled = false;
             }
             
             // 시각적 성공 피드백
-            const originalText = saveProfileBtn.textContent;
             saveProfileBtn.textContent = 'Saved Successfully!';
             saveProfileBtn.style.backgroundColor = '#10b981'; // 초록색 느낌
             saveProfileBtn.style.color = '#fff';
             setTimeout(() => {
-                saveProfileBtn.textContent = originalText;
+                saveProfileBtn.textContent = 'Save Profile';
                 saveProfileBtn.style.backgroundColor = '';
                 saveProfileBtn.style.color = '';
             }, 2000);
@@ -769,7 +842,9 @@
                     id: post.id,
                     url: post.image_url,
                     title: post.title,
-                    author: post.user_id ? 'Creator' : 'Unknown', 
+                    // 임의의 문자열('Creator')을 고정으로 보여주는 대신, 
+                    // 사용자 고유 UUID의 앞자리를 잘라서 ID처럼(@user_xxxx) 표시합니다.
+                    author: post.user_id ? `@user_${post.user_id.substring(0,6)}` : 'Unknown', 
                     avatar: `https://i.pravatar.cc/150?u=${post.user_id}`
                 }));
             } catch (err) {
@@ -921,17 +996,19 @@
             makeSubmitBtn.disabled = true;
 
             try {
-                // 1. Supabase Storage에 이미지 업로드 (버킷 이름: 'photos')
+                // 1. Supabase Storage에 이미지 업로드 (버킷 분기: public_photos or private_photos)
                 let fileExt = file.name.split('.').pop().toLowerCase();
-                // 모바일 환경 등에서 확장자를 알 수 없거나 한글/특수한 문자로 오는 경우 MIME 타입으로 대체
                 if (fileExt === file.name.toLowerCase() || !/^[a-z0-9]+$/.test(fileExt)) {
                     fileExt = file.type.split('/')[1] || 'jpg';
                 }
                 const fileName = `${Date.now()}-${Math.floor(Math.random()*1000)}.${fileExt}`;
                 const filePath = `${session.user.id}/${fileName}`;
                 
+                // 공개 여부에 따라 저장할 버킷 결정
+                const targetBucket = isPublic ? 'public_photos' : 'private_photos';
+                
                 const { error: uploadError, data } = await supabase.storage
-                    .from('photos')
+                    .from(targetBucket)
                     .upload(filePath, file, {
                         cacheControl: '3600',
                         upsert: false,
@@ -940,10 +1017,17 @@
 
                 if (uploadError) throw uploadError;
 
-                // 2. 업로드된 파일의 Public URL 가져오기
-                const { data: { publicUrl } } = supabase.storage
-                    .from('photos')
-                    .getPublicUrl(filePath);
+                // 2. 업로드된 파일의 URL 가져오기
+                let finalUrl = '';
+                if (isPublic) {
+                    const { data: { publicUrl } } = supabase.storage.from(targetBucket).getPublicUrl(filePath);
+                    finalUrl = publicUrl;
+                } else {
+                    // 프라이빗 버킷의 경우 서명된 URL(Signed URL)을 임의로 10년(315360000초) 할당하여 DB에 저장
+                    const { data: signedData, error: signedError } = await supabase.storage.from(targetBucket).createSignedUrl(filePath, 315360000);
+                    if (signedError) throw signedError;
+                    finalUrl = signedData.signedUrl;
+                }
 
                 // 3. 데이터베이스에 레코드 삽입 (테이블: 'posts')
                 const { error: dbError } = await supabase
@@ -952,7 +1036,7 @@
                         { 
                             user_id: session.user.id,
                             title: title, 
-                            image_url: publicUrl,
+                            image_url: finalUrl,
                             is_public: isPublic
                         }
                     ]);
