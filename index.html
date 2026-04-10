@@ -1088,8 +1088,8 @@
         }
 
         async function renderGrid(category = 'All') {
-            const emptyMsg = category === 'Likes' ? 'You haven\'t liked any stories yet.' : 'Loading stories...';
-            masonryGrid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #888;">${emptyMsg}</div>`;
+            const emptyMsg = category === 'Likes' ? 'Your favorite stories will appear here.' : 'Loading stories...';
+            masonryGrid.innerHTML = `<div style="column-span: all; text-align: center; padding: 40px; color: #888; width: 100%;">${emptyMsg}</div>`;
             
             // Load posts from DB
             let photos = await fetchPosts(null, category); 
@@ -1102,8 +1102,8 @@
             masonryGrid.innerHTML = '';
             
             if (photos.length === 0) {
-                const noResultMsg = category === 'Likes' ? "You haven't liked anything yet. Go discover some stories!" : "No stories found.";
-                masonryGrid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: #888; font-weight:300;">${noResultMsg}</div>`;
+                const noResultMsg = category === 'Likes' ? "You haven't liked any stories yet. Explore and try clicking the heart to like stories you love!" : "No stories found.";
+                masonryGrid.innerHTML = `<div style="column-span: all; text-align: center; padding: 60px; color: #888; font-weight:300; width: 100%;">${noResultMsg}</div>`;
                 return;
             }
             
