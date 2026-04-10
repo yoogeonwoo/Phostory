@@ -1120,7 +1120,7 @@
 
                 if (dbError) throw dbError;
 
-                alert('게시물이 성공적으로 등록되었습니다!');
+                showToast('게시물이 성공적으로 등록되었습니다!');
                 
                 // 폼 초기화 및 홈으로 이동
                 makeForm.reset();
@@ -1133,9 +1133,9 @@
                 console.error('Upload error:', error);
                 // 테이블이나 버킷이 존재하지 않을 때 친절한 안내 메시지 표시
                 if (error.message.includes('Bucket not found') || error.message.includes('relation "public.posts" does not exist')) {
-                    alert('개발자 참고: Supabase에 "photos" 스토리지 버킷과 "posts" 테이블을 셋업해야 합니다. (자세한 오류는 콘솔 확인)');
+                    showToast('개발자 참고: 적절한 스토리지 버킷과 테이블을 셋업해주세요. (콘솔 확인)', 'error');
                 } else {
-                    alert('업로드 중 오류가 발생했습니다: ' + error.message);
+                    showToast('업로드 중 오류가 발생했습니다: ' + error.message, 'error');
                 }
             } finally {
                 makeSubmitBtn.disabled = false;
