@@ -464,9 +464,22 @@
         // 4. Supabase auth form submission (Join/Login)
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const identifier = idInput.value;
-            const email = emailInput.value;
-            const password = passwordInput.value;
+            const identifier = idInput.value.trim();
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            // 1. Check if any required fields are empty
+            if (isLoginMode) {
+                if (!identifier || !password) {
+                    showToast('Please enter your ID, Email, and Password.', 'error');
+                    return;
+                }
+            } else {
+                if (!identifier || !email || !password) {
+                    showToast('Please enter your ID, Email, and Password.', 'error');
+                    return;
+                }
+            }
             
             authSubmitBtn.textContent = 'Processing...';
             authSubmitBtn.disabled = true;
@@ -537,8 +550,12 @@
                 
             } catch (error) {
                 let msg = error.message;
-                if (msg.includes('Invalid login credentials')) {
-                    msg = 'Invalid credentials.';
+                const lowerMsg = msg.toLowerCase();
+                
+                if (lowerMsg.includes('invalid') || lowerMsg.includes('not found') || lowerMsg.includes('credentials')) {
+                    msg = 'Incorrect ID, Email, or Password. Please check again.';
+                } else if (lowerMsg.includes('email') && lowerMsg.includes('phone') || lowerMsg.includes('missing')) {
+                    msg = 'Please enter your ID, Email, and Password.';
                 }
                 showToast(msg, 'error');
             } finally {
