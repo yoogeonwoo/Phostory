@@ -229,6 +229,15 @@ body {
     column-gap: 1.5rem;
     width: 100%;
     padding-bottom: 3rem;
+    column-fill: auto; /* 상단 정렬을 위해 자동 채우기 사용 */
+}
+
+/* 첫 줄의 높이를 맞추기 위한 트릭 */
+.masonry-grid::before {
+    content: "";
+    display: block;
+    column-span: all;
+    height: 0;
 }
 
 /* Responsive column counts */
@@ -309,10 +318,6 @@ body {
     transform: translateY(0);
 }
 
-/* 터치 지원을 위한 추가 스타일 */
-.photo-card.touch-active .glass-overlay {
-    opacity: 1;
-}
 
 .photo-title {
     color: #ffffff;
@@ -409,11 +414,6 @@ body {
         height: 14px;
     }
 }
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
 .btn-icon:hover {
     background: rgba(255, 255, 255, 0.4);
     transform: scale(1.1);
