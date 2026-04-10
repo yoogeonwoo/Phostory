@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phostory</title>
+    <meta name="description" content="Phostory - A photo blog for Instagram profiles">
+    <link rel="stylesheet" href="style.css">
+    <!-- 세련된 폰트를 위해 Google Fonts의 Outfit 적용 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 상단 검정색 툴바 -->
+    <header class="top-nav">
+        <!-- 좌측 삼선(햄버거) 메뉴 -->
+        <div class="menu-toggle" id="menuToggle" aria-label="메뉴 열기">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </div>
+        
+        <!-- 중앙 로고 -->
+        <h1 class="logo" id="navLogo" style="cursor: pointer;">Phostory</h1>
+        
+        <!-- 우측 여백 확보용 플레이스홀더 -->
+        <div class="nav-placeholder"></div>
+
+        <!-- 메인 드롭다운 메뉴 -->
+        <nav class="dropdown-menu" id="dropdownMenu">
+            <ul>
+                <li><a href="#" id="navLogin">Login</a></li>
+                <li><a href="#" id="navMake">Make My Phostory</a></li>
+                <li><a href="#" id="navShare">Share My Phostory</a></li>
+                <li><a href="#" id="navAbout">About Us</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- 메인 컨텐츠 영역 (현재 화면) -->
+    <main class="content-area view-section fade-in" id="homeView">
+        <div class="home-header">
+            <h2 class="home-title">Discover Stories</h2>
+            <p class="home-subtitle">Explore the world through the lens of Phostory creators.</p>
+            <div class="filter-chips">
+                <button class="chip active">All</button>
+                <button class="chip">Nature</button>
+                <button class="chip">Portrait</button>
+                <button class="chip">Architecture</button>
+                <button class="chip">Street</button>
+            </div>
+        </div>
+        
+        <!-- Masonry Photo Grid -->
+        <div class="masonry-grid" id="masonryGrid">
+            <!-- 자바스크립트로 사진 카드가 동적으로 채워집니다. -->
+        </div>
+    </main>
+
+    <!-- About Us 컨텐츠 (숨김 상태로 시작) -->
+    <main class="content-area about-page-bg view-section" id="aboutView" style="display: none;">
+        <section class="about-container">
+            <div class="about-header">
+                <h2>Our Story</h2>
+                <p class="subtitle">Capturing moments, sharing memories.</p>
+            </div>
+            
+            <div class="about-content">
+                <p>Welcome to <strong>Phostory</strong>, the ultimate photo blog platform designed specifically for your Instagram profiles. We believe that every photo has a story, and our mission is to provide you with a beautiful, clean, and intuitive space to share those stories with the world.</p>
+                <p>Founded in 2026, we focus on delivering premium, modern web experiences that make your memories shine. Whether you are a professional photographer or just someone who loves capturing everyday moments, Phostory offers a clutter-free environment focused entirely on your visual narrative.</p>
+                
+                <div class="about-features">
+                    <div class="feature-card">
+                        <h3>Minimalist Design</h3>
+                        <p>Let your photos do the talking with our beautifully crafted, distraction-free layouts.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Easy to Share</h3>
+                        <p>Seamlessly integrate with your existing social media profiles, making sharing effortless.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Make My Phostory 컨텐츠 (숨김 상태로 시작) -->
+    <main class="content-area build-page-bg view-section" id="makeView" style="display: none;">
+        <section class="make-container">
+            <div class="make-header">
+                <h2>Make My Phostory</h2>
+                <p class="subtitle">Share your unique moments with the world, or keep them just for you.</p>
+            </div>
+            <form id="makeForm" class="make-form">
+                <!-- 이미지 업로드 영역 -->
+                <div class="upload-area">
+                    <input type="file" id="photoInput" accept="image/*" class="file-input" required>
+                    <div class="upload-placeholder">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="upload-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        <span>Click or drag image to upload</span>
+                        <span class="upload-hint">High quality JPEG, PNG up to 10MB</span>
+                    </div>
+                    <img id="photoPreview" alt="Image Preview" style="display: none;">
+                </div>
+
+                <!-- 텍스트 필드 영역 -->
+                <div class="input-modern">
+                    <label for="postTitle">Title</label>
+                    <input type="text" id="postTitle" placeholder="Give your photo a catchy title" required>
+                </div>
+                <div class="input-modern">
+                    <label for="postDesc">Description</label>
+                    <textarea id="postDesc" rows="4" placeholder="Tell the story behind this photo" required></textarea>
+                </div>
+
+                <!-- 공개/비공개 토글 -->
+                <div class="visibility-section">
+                    <label class="visibility-label">Visibility</label>
+                    <div class="custom-toggle-wrapper">
+                        <input type="radio" id="visPublic" name="visibility" value="public" checked>
+                        <input type="radio" id="visPrivate" name="visibility" value="private">
+                        <div class="toggle-bg"></div>
+                        <label for="visPublic" class="toggle-option">Public (Main Page)</label>
+                        <label for="visPrivate" class="toggle-option">Private (Share Only)</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary btn-submit-post" id="makeSubmitBtn">Publish Post</button>
+            </form>
+        </section>
+    </main>
+
+    <!-- Share My Phostory 컨텐츠 (숨김 상태로 시작) -->
+    <main class="content-area share-page-bg view-section" id="shareView" style="display: none;">
+        <section class="share-container">
+            <div class="share-header">
+                <h2>Share My Phostory</h2>
+                <p class="subtitle">Share your personalized page and check your performance overview.</p>
+            </div>
+            
+            <div class="share-link-section">
+                <h3>Your Profile Link</h3>
+                <div class="link-box">
+                    <input type="text" id="profileLink" value="https://phostory.com/@MyProfile" readonly>
+                    <button class="btn-copy" id="copyLinkBtn">Copy</button>
+                </div>
+            </div>
+
+            <div class="preview-section">
+                <div class="preview-header-wrapper">
+                    <h3>Public Page Preview</h3>
+                    <p class="preview-desc">This is how visitors will see your public profile.</p>
+                </div>
+                
+                <div class="browser-mockup">
+                    <div class="browser-header">
+                        <div class="browser-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="browser-url" id="browserUrl">https://phostory.com/@MyProfile</div>
+                    </div>
+                    <div class="browser-body">
+                        <!-- Profile Header -->
+                        <div class="profile-hero">
+                            <div class="profile-avatar-wrap">
+                                <img src="https://i.pravatar.cc/150?img=12" alt="Profile" class="profile-avatar">
+                            </div>
+                            <h2 class="profile-name" id="previewUsername">@Username</h2>
+                            <p class="profile-bio">Capturing the world through my lens.</p>
+                        </div>
+                        
+                        <!-- Mini Masonry Grid -->
+                        <div class="mini-masonry">
+                            <div class="mini-card"><img src="https://picsum.photos/seed/pr1/300/400" alt="post"></div>
+                            <div class="mini-card"><img src="https://picsum.photos/seed/pr2/300/250" alt="post"></div>
+                            <div class="mini-card"><img src="https://picsum.photos/seed/pr3/300/350" alt="post"></div>
+                            <div class="mini-card"><img src="https://picsum.photos/seed/pr4/300/300" alt="post"></div>
+                            <div class="mini-card"><img src="https://picsum.photos/seed/pr5/300/450" alt="post"></div>
+                            <div class="mini-card"><img src="https://picsum.photos/seed/pr6/300/200" alt="post"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 로그인 모달 -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-content">
+            <button class="close-btn" id="closeModal">&times;</button>
+            <h2 id="modalTitle">Welcome Back</h2>
+            <p class="modal-subtitle">Log in to your Phostory account</p>
+            <form id="authForm">
+                <div class="input-group">
+                    <label for="emailInput">Email</label>
+                    <input type="email" id="emailInput" placeholder="you@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="passwordInput">Password</label>
+                    <input type="password" id="passwordInput" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn-primary" id="authSubmitBtn">Login</button>
+            </form>
+            <div class="modal-footer">
+                <span id="toggleAuthMode">Don't have an account? <b>Sign up</b></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메뉴 동작 및 Supabase 서버 연결 스크립트 -->
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+        // 1. Supabase 초기화 (제공받은 키 사용)
+        const supabaseUrl = 'https://jlxlccrhwmmrubvgyloi.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpseGxjY3Jod21tcnVidmd5bG9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3OTc3NDcsImV4cCI6MjA5MTM3Mzc0N30.hnv4A5NFzmMJsq2rrt72hH-cToCAKmqSxhcmaB8eWeg';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // 2. 햄버거 메뉴 토글 로직
+        const menuToggle = document.getElementById('menuToggle');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        
+        menuToggle.addEventListener('click', () => {
+            menuToggle.classList.toggle('active');
+            dropdownMenu.classList.toggle('active');
+        });
+
+        // 3. 모달 UI 및 로직
+        const loginModal = document.getElementById('loginModal');
+        const closeModalBtn = document.getElementById('closeModal');
+        const navLoginBtn = document.getElementById('navLogin');
+        
+        const authForm = document.getElementById('authForm');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        
+        const toggleAuthMode = document.getElementById('toggleAuthMode');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalSubtitle = document.querySelector('.modal-subtitle');
+        const authSubmitBtn = document.getElementById('authSubmitBtn');
+        
+        let isLoginMode = true; // true: 로그인, false: 회원가입
+
+        // 로그인 버튼 클릭 처리 (로그아웃 상태면 모달 열기, 로그인 상태면 로그아웃 진행)
+        navLoginBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            dropdownMenu.classList.remove('active'); // 메뉴 닫기
+            menuToggle.classList.remove('active');
+
+            if (navLoginBtn.textContent === 'Logout') {
+                const { error } = await supabase.auth.signOut();
+                if (!error) {
+                    navLoginBtn.textContent = 'Login';
+                    alert('로그아웃 되었습니다.');
+                }
+            } else {
+                loginModal.classList.add('active');
+            }
+        });
+
+        // 모달 닫기
+        closeModalBtn.addEventListener('click', () => {
+            loginModal.classList.remove('active');
+        });
+
+        // 화면 바깥 클릭으로 모달 닫기
+        loginModal.addEventListener('click', (e) => {
+            if (e.target === loginModal) {
+                loginModal.classList.remove('active');
+            }
+        });
+
+        // 로그인 <-> 회원가입 창 전환 방지
+        toggleAuthMode.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            if (isLoginMode) {
+                modalTitle.textContent = 'Welcome Back';
+                modalSubtitle.textContent = 'Log in to your Phostory account';
+                authSubmitBtn.textContent = 'Login';
+                toggleAuthMode.innerHTML = `Don't have an account? <b>Sign up</b>`;
+            } else {
+                modalTitle.textContent = 'Create an Account';
+                modalSubtitle.textContent = 'Join Phostory to share your moments';
+                authSubmitBtn.textContent = 'Sign Up';
+                toggleAuthMode.innerHTML = `Already have an account? <b>Log in</b>`;
+            }
+        });
+
+        // 4. Supabase 인증 폼 제출 처리 (가입/로그인)
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            authSubmitBtn.textContent = 'Processing...';
+            authSubmitBtn.disabled = true;
+
+            try {
+                if (isLoginMode) {
+                    // 로그인
+                    const { error } = await supabase.auth.signInWithPassword({
+                        email: email,
+                        password: password,
+                    });
+                    if (error) throw error;
+                    alert('성공적으로 로그인되었습니다!');
+                    
+                } else {
+                    // 회원가입
+                    const { error } = await supabase.auth.signUp({
+                        email: email,
+                        password: password,
+                    });
+                    if (error) throw error;
+                    alert('회원가입이 완료되었습니다!');
+                }
+                
+                // 로그인/가입 성공 후 모달 닫고 내비게이션 업데이트
+                loginModal.classList.remove('active');
+                navLoginBtn.textContent = 'Logout';
+                authForm.reset();
+                
+            } catch (error) {
+                alert('오류 발생: ' + error.message);
+            } finally {
+                authSubmitBtn.disabled = false;
+                authSubmitBtn.textContent = isLoginMode ? 'Login' : 'Sign Up';
+            }
+        });
+        
+        // 5. 페이지 새로고침 시 사용자 로그인 유지 상태 확인
+        async function checkUser() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                navLoginBtn.textContent = 'Logout';
+            }
+        }
+        checkUser();
+
+        // 6. SPA 라우팅 로직 (Home <-> About Us <-> Make My Phostory 화면 전환)
+        const homeView = document.getElementById('homeView');
+        const aboutView = document.getElementById('aboutView');
+        const makeView = document.getElementById('makeView');
+        const shareView = document.getElementById('shareView');
+        const navAboutBtn = document.getElementById('navAbout');
+        const navMakeBtn = document.getElementById('navMake');
+        const navShareBtn = document.getElementById('navShare');
+        const navLogoBtn = document.getElementById('navLogo');
+
+        function switchView(viewToShow) {
+            // 모든 뷰 숨기기
+            homeView.style.display = 'none';
+            aboutView.style.display = 'none';
+            if (makeView) makeView.style.display = 'none';
+            if (shareView) shareView.style.display = 'none';
+            
+            // 선택한 뷰 보이기 (배경이 있는 페이지는 flex 유지)
+            if (viewToShow === aboutView || viewToShow === makeView || viewToShow === shareView) {
+                viewToShow.style.display = 'flex';
+            } else {
+                homeView.style.display = 'block';
+            }
+            
+            // 부드러운 전환 효과를 위해 애니메이션 클래스 재부여
+            viewToShow.classList.remove('fade-in');
+            void viewToShow.offsetWidth; // Trigger reflow
+            viewToShow.classList.add('fade-in');
+        }
+
+        navAboutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            dropdownMenu.classList.remove('active'); // 클릭 시 메뉴 닫기
+            menuToggle.classList.remove('active');
+            switchView(aboutView);
+        });
+
+        navMakeBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            dropdownMenu.classList.remove('active');
+            menuToggle.classList.remove('active');
+            
+            // 글쓰기 창으로 가기 전 로그인 상태 확인
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('사진을 등록하려면 먼저 로그인해주세요.');
+                loginModal.classList.add('active');
+                return;
+            }
+            
+            switchView(makeView);
+        });
+
+        navShareBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            dropdownMenu.classList.remove('active');
+            menuToggle.classList.remove('active');
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('내 페이지를 보려면 먼저 로그인해주세요.');
+                loginModal.classList.add('active');
+                return;
+            }
+            
+            // 프로필 링크 생성 (이메일 앞부분 사용)
+            const emailPrefix = session.user.email.split('@')[0];
+            const fullLink = `https://phostory.com/@${emailPrefix}`;
+            document.getElementById('profileLink').value = fullLink;
+            
+            // 프리뷰 정보 업데이트
+            const browserUrl = document.getElementById('browserUrl');
+            const previewUsername = document.getElementById('previewUsername');
+            if (browserUrl) browserUrl.textContent = fullLink;
+            if (previewUsername) previewUsername.textContent = `@${emailPrefix}`;
+            
+            switchView(shareView);
+        });
+
+        // 링크 복사 기능
+        const copyLinkBtn = document.getElementById('copyLinkBtn');
+        const profileLink = document.getElementById('profileLink');
+        copyLinkBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(profileLink.value);
+                const originalText = copyLinkBtn.textContent;
+                copyLinkBtn.textContent = 'Copied!';
+                setTimeout(() => copyLinkBtn.textContent = originalText, 2000);
+            } catch (err) {
+                profileLink.select();
+                document.execCommand('copy');
+                copyLinkBtn.textContent = 'Copied!';
+                setTimeout(() => copyLinkBtn.textContent = 'Copy', 2000);
+            }
+        });
+
+        navLogoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchView(homeView);
+        });
+
+        // 7. 메인 페이지 Masonry 그리드 더미 데이터 생성 및 렌더링
+        const masonryGrid = document.getElementById('masonryGrid');
+        
+        // 고해상도 샘플 더미 데이터 (unsplash/picsum) - 카테고리별 동적 생성
+        function getDummyPhotos(category = 'All') {
+            const count = category === 'All' ? 16 : Math.floor(Math.random() * 5) + 8; // 카테고리 선택 시 8~12개 출력
+            return Array.from({ length: count }, (_, i) => {
+                const randomHeight = Math.floor(Math.random() * 400) + 600;
+                // 카테고리마다 다른 사진이 나오도록 시드 변경
+                const seed = category + i + Math.random(); 
+                const catTitle = category === 'All' ? 'Moments' : category;
+                return {
+                    id: String(seed),
+                    url: `https://picsum.photos/seed/${seed}/600/${randomHeight}`,
+                    title: `${catTitle} ${i+1}`,
+                    author: `Creator_${Math.floor(Math.random()*100)}`,
+                    avatar: `https://i.pravatar.cc/150?img=${Math.floor(Math.random()*70)}`
+                };
+            });
+        }
+
+        function renderGrid(category = 'All') {
+            const dummyPhotos = getDummyPhotos(category);
+            masonryGrid.innerHTML = '';
+            
+            dummyPhotos.forEach(photo => {
+                const card = document.createElement('div');
+                card.className = 'photo-card fade-in';
+                // 약간의 시간차를 두어 fade-in 효과 연출 (지연율 랜덤)
+                card.style.animationDelay = `${Math.random() * 0.4}s`;
+
+                card.innerHTML = `
+                    <div class="card-image-wrapper">
+                        <!-- 이미지 로딩을 위한 스켈레톤/비율 유지 트릭 대신 직접 img 사용 (간단화) -->
+                        <img src="${photo.url}" alt="${photo.title}" loading="lazy">
+                    </div>
+                    <!-- 프리미엄 글래스모피즘 오버레이 -->
+                    <div class="glass-overlay">
+                        <div class="overlay-content">
+                            <h3 class="photo-title">${photo.title}</h3>
+                            <div class="photo-meta">
+                                <div class="photographer">
+                                    <img src="${photo.avatar}" alt="${photo.author}" class="photographer-avatar">
+                                    <span>${photo.author}</span>
+                                </div>
+                                <div class="action-buttons">
+                                    <button class="btn-icon like-btn" aria-label="Like" title="Like">
+                                        <!-- Heart SVG (간단한 아이콘) -->
+                                        <svg class="heart-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // 좋아요 버튼에 이벤트 설정
+                const likeBtn = card.querySelector('.like-btn');
+                likeBtn.addEventListener('click', (e) => {
+                    e.preventDefault(); 
+                    e.stopPropagation(); // 버튼 클릭이 부모 요소(카드 전체)로 전파되는 것 방지
+                    
+                    const heartIcon = likeBtn.querySelector('.heart-icon');
+                    likeBtn.classList.toggle('active');
+                    
+                    if (likeBtn.classList.contains('active')) {
+                        // 눌렸을 때 시각적 효과 (빨간 하트)
+                        heartIcon.style.fill = '#ff4b4b';
+                        heartIcon.style.stroke = '#ff4b4b';
+                        likeBtn.style.transform = 'scale(1.2)';
+                        setTimeout(() => likeBtn.style.transform = '', 200); // 약간의 팝핑 애니메이션
+                    } else {
+                        // 취소했을 때 원상복구
+                        heartIcon.style.fill = 'none';
+                        heartIcon.style.stroke = 'currentColor';
+                    }
+                });
+
+                masonryGrid.appendChild(card);
+            });
+        }
+
+        // 초기 렌더링
+        renderGrid('All');
+
+        // 8. 필터 칩 동작 로직
+        const filterChips = document.querySelectorAll('.chip');
+        filterChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                if (chip.classList.contains('active')) return; // 이미 선택된 카테고리면 무시
+
+                // 기존 활성화된 칩 비활성화 후 클릭한 칩 활성화
+                document.querySelector('.chip.active')?.classList.remove('active');
+                chip.classList.add('active');
+                
+                const categoryName = chip.textContent;
+                
+                // 스무스한 전환 애니메이션
+                masonryGrid.style.opacity = '0';
+                masonryGrid.style.transition = 'opacity 0.3s ease';
+                
+                setTimeout(() => {
+                    renderGrid(categoryName);
+                    masonryGrid.style.opacity = '1';
+                }, 300);
+            });
+        });
+
+        // 9. Make My Phostory 기능 (사진 업로드 및 상태 전환)
+        const makeForm = document.getElementById('makeForm');
+        const photoInput = document.getElementById('photoInput');
+        const photoPreview = document.getElementById('photoPreview');
+        const uploadPlaceholder = document.querySelector('.upload-placeholder');
+        const makeSubmitBtn = document.getElementById('makeSubmitBtn');
+        const visibilityInputs = document.querySelectorAll('input[name="visibility"]');
+        const toggleBg = document.querySelector('.toggle-bg');
+
+        // 공개/비공개 토글 슬릿 애니메이션
+        visibilityInputs.forEach(input => {
+            input.addEventListener('change', (e) => {
+                if(e.target.value === 'public') {
+                    toggleBg.style.transform = 'translateX(0)';
+                } else {
+                    toggleBg.style.transform = 'translateX(100%)';
+                }
+            });
+        });
+
+        // 이미지 미리보기
+        photoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    photoPreview.src = e.target.result;
+                    photoPreview.style.display = 'block';
+                    uploadPlaceholder.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 폼 제출 (Supabase Storage 및 DB Insert)
+        makeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+                return;
+            }
+
+            const title = document.getElementById('postTitle').value;
+            const desc = document.getElementById('postDesc').value;
+            const isPublic = document.querySelector('input[name="visibility"]:checked').value === 'public';
+            const file = photoInput.files[0];
+
+            if (!file) {
+                alert('사진을 선택해주세요.');
+                return;
+            }
+
+            makeSubmitBtn.textContent = 'Uploading...';
+            makeSubmitBtn.disabled = true;
+
+            try {
+                // 1. Supabase Storage에 이미지 업로드 (버킷 이름: 'photos')
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}-${Math.floor(Math.random()*1000)}.${fileExt}`;
+                const filePath = `${session.user.id}/${fileName}`;
+                
+                const { error: uploadError, data } = await supabase.storage
+                    .from('photos')
+                    .upload(filePath, file);
+
+                if (uploadError) throw uploadError;
+
+                // 2. 업로드된 파일의 Public URL 가져오기
+                const { data: { publicUrl } } = supabase.storage
+                    .from('photos')
+                    .getPublicUrl(filePath);
+
+                // 3. 데이터베이스에 레코드 삽입 (테이블: 'posts')
+                const { error: dbError } = await supabase
+                    .from('posts')
+                    .insert([
+                        { 
+                            user_id: session.user.id,
+                            title: title, 
+                            description: desc, 
+                            image_url: publicUrl,
+                            is_public: isPublic
+                        }
+                    ]);
+
+                if (dbError) throw dbError;
+
+                alert('게시물이 성공적으로 등록되었습니다!');
+                
+                // 폼 초기화 및 홈으로 이동
+                makeForm.reset();
+                photoPreview.style.display = 'none';
+                uploadPlaceholder.style.display = 'flex';
+                toggleBg.style.transform = 'translateX(0)';
+                switchView(homeView);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                // 테이블이나 버킷이 존재하지 않을 때 친절한 안내 메시지 표시
+                if (error.message.includes('Bucket not found') || error.message.includes('relation "public.posts" does not exist')) {
+                    alert('개발자 참고: Supabase에 "photos" 스토리지 버킷과 "posts" 테이블을 셋업해야 합니다. (자세한 오류는 콘솔 확인)');
+                } else {
+                    alert('업로드 중 오류가 발생했습니다: ' + error.message);
+                }
+            } finally {
+                makeSubmitBtn.disabled = false;
+                makeSubmitBtn.textContent = 'Publish Post';
+            }
+        });
+    </script>
+</body>
+</html>
