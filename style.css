@@ -229,7 +229,7 @@ body {
     column-gap: 1.5rem;
     width: 100%;
     padding-bottom: 3rem;
-    column-fill: auto; /* 상단 정렬을 위해 자동 채우기 사용 */
+    /* column-fill: auto를 제거하여 모든 컬럼을 균형있게 사용하도록 수정 */
 }
 
 /* 첫 줄의 높이를 맞추기 위한 트릭 */
