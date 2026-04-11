@@ -1716,23 +1716,29 @@
                 else if (width <= 1600) colCount = 5;
                 else colCount = 6; // 계속해서 늘어남
 
-                if (masonryGrid) {
-                    masonryGrid.innerHTML = '';
-                    const columns = [];
-                    for (let i = 0; i < colCount; i++) {
-                        const col = document.createElement('div');
-                        col.className = 'masonry-column';
-                        masonryGrid.appendChild(col);
-                        columns.push(col);
-                    }
-
-                    // Distribute photos to fill columns horizontally first (fixes empty space)
-                    photos.forEach((photo, index) => {
-                        const colIdx = index % colCount;
-                        const card = createPhotoCard(photo);
-                        columns[colIdx].appendChild(card);
-                    });
+                // Optimization: ONLY re-render if the column count has actually changed
+                // This prevents white flickers during mobile zooming or small window tweaks
+                if (masonryGrid._currentColCount === colCount) {
+                    return; 
                 }
+                
+                masonryGrid.innerHTML = '';
+                masonryGrid._currentColCount = colCount;
+                
+                const columns = [];
+                for (let i = 0; i < colCount; i++) {
+                    const col = document.createElement('div');
+                    col.className = 'masonry-column';
+                    masonryGrid.appendChild(col);
+                    columns.push(col);
+                }
+
+                // Distribute photos to fill columns horizontally first (fixes empty space)
+                photos.forEach((photo, index) => {
+                    const colIdx = index % colCount;
+                    const card = createPhotoCard(photo);
+                    columns[colIdx].appendChild(card);
+                });
             };
 
             renderByWidth();
@@ -2066,7 +2072,11 @@
                     else if (width <= 900) colCount = 3;
                     else colCount = 4;
 
+                    // Optimization: Skip if colCount is same (prevents zoom flicker)
+                    if (realProfileGrid._currentColCount === colCount) return;
+
                     realProfileGrid.innerHTML = '';
+                    realProfileGrid._currentColCount = colCount;
                     const columns = [];
                     for (let i = 0; i < colCount; i++) {
                         const col = document.createElement('div');
@@ -2075,12 +2085,15 @@
                         columns.push(col);
                     }
 
-                    photos.forEach((photo, index) => {
-                        const colIdx = index % colCount;
-                        const card = createPhotoCard(photo, isMyProfile);
-                        columns[colIdx].appendChild(card);
-                    });
-                };
+            photos.forEach((photo, index) => {
+                const colIdx = index % colCount;
+                const card = createPhotoCard(photo, isMyProfile);
+                columns[colIdx].appendChild(card);
+            });
+            
+            // Store current column count to avoid redundant re-renders
+            realProfileGrid._currentColCount = colCount;
+        };
 
                 renderProfileGrid();
                 
@@ -2091,22 +2104,23 @@
         }
 
         // Global Resize Handler for both Home and Profile grids
-        // Fix for mobile: Only re-render if WIDTH changes, ignoring height shifts from address bar UI
-        let lastWidth = window.innerWidth;
+        // Optimized for zoom and mobile scroll Performance
+        let resizeTimeout;
         window.addEventListener('resize', () => {
-            const currentWidth = window.innerWidth;
-            if (currentWidth === lastWidth) return; // Ignore height-only changes
-            lastWidth = currentWidth;
-
-            // Update Home Grid if active
-            if (masonryGrid && masonryGrid._currentRenderer && masonryGrid._currentPhotos) {
-                masonryGrid._currentRenderer();
-            }
-            // Update Profile Grid if active
-            const profileGrid = document.getElementById('realProfileGrid');
-            if (profileGrid && profileGrid._currentRenderer && profileGrid._currentPhotos) {
-                profileGrid._currentRenderer();
-            }
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                // Update Home Grid if active
+                const homeGrid = document.getElementById('masonryGrid');
+                if (homeGrid && homeGrid._currentRenderer && homeGrid._currentPhotos) {
+                    homeGrid._currentRenderer();
+                }
+                // Update Profile Grid if active
+                const profileGrid = document.getElementById('realProfileGrid');
+                if (profileGrid && profileGrid._currentRenderer && profileGrid._currentPhotos) {
+                    // Profile grid logic also needs the "same col count" check for optimization
+                    profileGrid._currentRenderer();
+                }
+            }, 100); // 100ms debounce
         });
 
         // Admin Page Navigation
