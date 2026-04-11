@@ -415,7 +415,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="adminPhotosList">
-                                    <tr><td colspan="4" style="text-align:center; padding: 40px;">Loading photos...</td></tr>
+                                    <tr><td colspan="3" style="text-align:center; padding: 40px;">Loading photos...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -471,12 +471,20 @@
             </div>
 
             <div class="admin-console-section">
-                <div class="console-label">Admin Command Console</div>
+                <div class="console-window-header">
+                    <div class="window-dots">
+                        <span class="dot-red"></span>
+                        <span class="dot-yellow"></span>
+                        <span class="dot-green"></span>
+                    </div>
+                    <div class="console-label">System Terminal</div>
+                </div>
                 <div class="console-input-wrap">
+                    <span class="console-prompt">&gt;</span>
                     <input type="text" id="adminCommandInput" placeholder="Type command... (e.g. /reset, /role admin, /help)" spellcheck="false">
                     <button id="btnRunCommand">Run</button>
                 </div>
-                <div id="consoleHelp" class="console-help">Type <strong>/help</strong> to see available commands</div>
+                <div id="consoleHelp" class="console-help">Admin Command Console Active</div>
             </div>
 
             <div class="admin-modal-actions">
@@ -2169,8 +2177,12 @@
             list.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px;">Loading users...</td></tr>';
             
             try {
-                // 1. Fetch Users
-                const { data: users, error } = await supabase.from('profiles').select('*').order('username', { ascending: true });
+                // 1. Fetch Users (Admins first, then sequentially by username)
+                const { data: users, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .order('is_admin', { ascending: false })
+                    .order('username', { ascending: true });
                 if (error) throw error;
 
                 // 2. Fetch non-deleted posts for all users to get counts
@@ -2309,22 +2321,29 @@
                         
                         delBtn.onclick = async (e) => {
                             e.stopPropagation();
-                            const confirmDelete = confirm('Are you sure you want to delete this post?');
-                            if (confirmDelete) {
+                            const isConfirmed = await showConfirm('Are you sure you want to delete this post as an administrator?');
+                            if (isConfirmed) {
                                 try {
-                                    const { error } = await supabase
+                                    const { data, error } = await supabase
                                         .from('posts')
                                         .update({ deleted_at: new Date().toISOString() })
-                                        .eq('id', post.id);
+                                        .eq('id', post.id)
+                                        .select();
 
                                     if (error) throw error;
                                     
-                                    showToast('Post deleted successfully');
-                                    // Refresh the detail view to update list and count
-                                    showUserDetail(userId);
+                                    if (!data || data.length === 0) {
+                                        showToast('Delete ignored by server (Check RLS policies)', 'error');
+                                    } else {
+                                        showToast('Post deleted successfully');
+                                        // Refresh the detail view to update list and count
+                                        showUserDetail(userId);
+                                        // Also refresh background user list to update post counts
+                                        renderAdminUsers();
+                                    }
                                 } catch (err) {
                                     console.error('Delete error:', err);
-                                    showToast('Failed to delete post: ' + err.message);
+                                    showToast('Failed to delete post: ' + err.message, 'error');
                                 }
                             }
                         };
@@ -2336,16 +2355,16 @@
                     });
                 }
 
-                // 6. Admin Console Setup
+                // 6. Admin Console Setup (UI Only - Functionality to be added)
                 const commandInput = document.getElementById('adminCommandInput');
                 const btnRun = document.getElementById('btnRunCommand');
                 
                 commandInput.value = '';
                 
-                const handleCommand = async () => {
+                const handleCommand = () => {
                     const cmd = commandInput.value.trim();
                     if (!cmd) return;
-                    await executeAdminCommand(userId, cmd, profile);
+                    console.log('Command entered:', cmd);
                     commandInput.value = '';
                 };
 
@@ -2361,47 +2380,7 @@
             }
         }
 
-        /**
-         * Execute specialized admin commands from the detail console
-         */
-        async function executeAdminCommand(userId, command, profile) {
-            const cmd = command.toLowerCase();
 
-            if (cmd === '/help') {
-                alert('Available Commands:\n/reset - Send password reset email\n/role admin - Give admin privileges\n/role user - Revoke admin privileges\n/id - Show user ID');
-                return;
-            }
-
-            if (cmd === '/reset') {
-                if (confirm(`Send reset email to ${profile.email}?`)) {
-                    const { error } = await supabase.auth.resetPasswordForEmail(profile.email);
-                    if (error) showToast('Reset failed: ' + error.message, 'error');
-                    else showToast('Reset email sent successfully!');
-                }
-                return;
-            }
-
-            if (cmd === '/role admin' || cmd === '/role user') {
-                const isAdmin = cmd === '/role admin';
-                if (confirm(`Change @${profile.username} to ${isAdmin ? 'Admin' : 'User'}?`)) {
-                    const { error } = await supabase.from('profiles').update({ is_admin: isAdmin }).eq('id', userId);
-                    if (error) showToast('Role change failed: ' + error.message, 'error');
-                    else {
-                        showToast(`Role updated to ${isAdmin ? 'Admin' : 'User'}`);
-                        showUserDetail(userId); // Refresh detail
-                        renderAdminUsers(); // Refresh list
-                    }
-                }
-                return;
-            }
-
-            if (cmd === '/id') {
-                alert(`User UUID: ${userId}`);
-                return;
-            }
-
-            showToast('Unknown command. Type /help for assistance.', 'error');
-        }
 
         // --- Photo Detail Modal Logic ---
         const photoDetailModal = document.getElementById('photoDetailModal');
@@ -2483,41 +2462,54 @@
             const isPublic = document.querySelector('input[name="adminVisibility"]:checked').value === 'true';
 
             try {
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('posts')
                     .update({ title, is_public: isPublic })
-                    .eq('id', photoId);
+                    .eq('id', photoId)
+                    .select();
 
                 if (error) throw error;
-                showToast('Photo updated successfully');
-                photoDetailClose();
-                renderAdminPhotos(); // Refresh list
+
+                if (!data || data.length === 0) {
+                    showToast('Update ignored by server (Check RLS policies)', 'error');
+                } else {
+                    showToast('Photo updated successfully');
+                    photoDetailClose();
+                    renderAdminPhotos(); // Refresh list
+                }
             } catch (err) {
-                showToast('Update failed: ' + err.message);
+                showToast('Update failed: ' + err.message, 'error');
             }
         }
 
         async function deletePhotoAdmin(photoId) {
-            if (confirm('Are you sure you want to delete this photo as an administrator?')) {
+            const isConfirmed = await showConfirm('Are you sure you want to delete this photo as an administrator?');
+            if (isConfirmed) {
                 try {
-                    const { error } = await supabase
+                    const { data, error } = await supabase
                         .from('posts')
                         .update({ deleted_at: new Date().toISOString() })
-                        .eq('id', photoId);
+                        .eq('id', photoId)
+                        .select();
 
                     if (error) throw error;
-                    showToast('Photo deleted successfully');
-                    photoDetailClose();
-                    renderAdminPhotos(); // Refresh list
+
+                    if (!data || data.length === 0) {
+                        showToast('Delete ignored by server (Check RLS policies)', 'error');
+                    } else {
+                        showToast('Photo deleted successfully');
+                        photoDetailClose();
+                        renderAdminPhotos(); // Refresh list
+                    }
                 } catch (err) {
-                    showToast('Delete failed: ' + err.message);
+                    showToast('Delete failed: ' + err.message, 'error');
                 }
             }
         }
 
         async function renderAdminPhotos() {
             const list = document.getElementById('adminPhotosList');
-            list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px;">Loading photos...</td></tr>';
+            list.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px;">Loading photos...</td></tr>';
             
             try {
                 const { data: photos, error } = await supabase.from('posts')
@@ -2528,7 +2520,7 @@
                 
                 list.innerHTML = '';
                 if (photos.length === 0) {
-                    list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px;">No photos found.</td></tr>';
+                    list.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px;">No photos found.</td></tr>';
                     return;
                 }
                 
@@ -2561,7 +2553,7 @@
                 });
             } catch (err) {
                 console.error('Error rendering admin photos:', err);
-                list.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 40px; color: red;">Error: ${err.message}</td></tr>`;
+                list.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 40px; color: red;">Error: ${err.message}</td></tr>`;
             }
         }
 

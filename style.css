@@ -2080,65 +2080,115 @@ body {
     font-weight: 300;
 }
 
-/* --- Admin Console Interface --- */
+/* --- Admin Console Interface (Minimalist Light Mode) --- */
 .admin-console-section {
-    margin-top: 1rem;
-    padding: 1.5rem;
-    background: #1e293b; /* Dark console background */
+    margin-top: 2rem;
+    background: #ffffff; /* Clean White */
     border-radius: 16px;
-    color: #e2e8f0;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    overflow: hidden;
 }
+
+.console-window-header {
+    background: #f8fafc;
+    padding: 0.7rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.window-dots {
+    display: flex;
+    gap: 6px;
+}
+
+.window-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.dot-red { background: #ff5f56; }
+.dot-yellow { background: #ffbd2e; }
+.dot-green { background: #27c93f; }
 
 .console-label {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.05em;
     color: #94a3b8;
-    margin-bottom: 0.8rem;
+    margin-bottom: 0 !important;
 }
 
-.console-input-wrap {
+.admin-console-section .console-input-wrap {
+    margin: 1rem;
+    background: #fdfdfd;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
     display: flex;
-    gap: 0.5rem;
-    background: rgba(0,0,0,0.2);
-    padding: 4px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
+    align-items: center;
+}
+
+.console-input-wrap:focus-within {
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+}
+
+.console-prompt {
+    padding-left: 1rem;
+    color: #000000;
+    font-weight: 700;
+    font-size: 0.9rem;
 }
 
 #adminCommandInput {
     flex: 1;
     background: transparent;
-    border: none;
-    padding: 0.6rem 0.8rem;
-    color: #38bdf8; /* Terminal cyan color */
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 0.9rem;
-    outline: none;
+    border: none !important;
+    padding: 0.85rem 0.8rem;
+    color: var(--text-dark);
+    font-family: inherit; /* Use main font for cleaner look */
+    font-size: 0.95rem;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+#adminCommandInput::placeholder {
+    color: #475569;
 }
 
 #btnRunCommand {
-    background: #38bdf8;
-    color: #0f172a;
+    background: var(--text-dark); /* Pure Black */
+    color: #ffffff;
     border: none;
-    padding: 0 1.2rem;
-    border-radius: 8px;
+    height: 36px;
+    padding: 0 1.25rem;
+    border-radius: 10px;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    margin: 6px;
 }
 
 #btnRunCommand:hover {
-    background: #7dd3fc;
+    background: #333333;
     transform: scale(1.02);
 }
 
+#btnRunCommand:active {
+    transform: scale(0.98);
+}
+
 .console-help {
-    margin-top: 0.8rem;
+    margin: 0 1.25rem 1rem 1.25rem;
     font-size: 0.75rem;
-    color: #64748b;
+    color: #94a3b8;
+    display: block;
 }
 
 .console-help strong {
