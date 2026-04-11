@@ -840,15 +840,23 @@
                 navLoginBtn.textContent = 'Logout';
                 if (navSettingsBtn) navSettingsBtn.style.display = 'block';
                 
-                // Admin check
+                // Role-based access check
                 try {
-                    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
-                    if (profile && profile.is_admin) {
+                    const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+                    const userRole = profile?.role || 'user';
+                    
+                    // operator, admin, developer can access Admin Management
+                    const hasAdminAccess = ['operator', 'admin', 'developer'].includes(userRole);
+                    
+                    if (hasAdminAccess) {
                         if (navAdminBtn) navAdminBtn.style.display = 'block';
                     } else if (navAdminBtn) {
                         navAdminBtn.style.display = 'none';
                     }
-                } catch (err) { console.error('Admin check error:', err); }
+                    
+                    // Store role in session-like object for quick access
+                    window._userRole = userRole; 
+                } catch (err) { console.error('Role check error:', err); }
             } else {
                 navLoginBtn.textContent = 'Login';
                 if (navSettingsBtn) navSettingsBtn.style.display = 'none';
@@ -2158,11 +2166,10 @@
             list.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px;">Loading users...</td></tr>';
             
             try {
-                // 1. Fetch Users (Admins first, then sequentially by username)
                 const { data: users, error } = await supabase
                     .from('profiles')
                     .select('*')
-                    .order('is_admin', { ascending: false })
+                    .order('role', { ascending: true }) // Sort by role significance if possible, or just default
                     .order('username', { ascending: true });
                 if (error) throw error;
 
@@ -2184,7 +2191,15 @@
                 
                 users.forEach(user => {
                     const tr = document.createElement('tr');
-                    const roleBadge = user.is_admin ? '<span class="badge badge-admin">Admin</span>' : '<span class="badge badge-user">User</span>';
+                    
+                    let roleLabel = 'User';
+                    let roleClass = 'badge-user';
+                    
+                    if (user.role === 'operator') { roleLabel = 'Operator'; roleClass = 'badge-operator'; }
+                    else if (user.role === 'admin') { roleLabel = 'Admin'; roleClass = 'badge-admin'; }
+                    else if (user.role === 'developer') { roleLabel = 'Developer'; roleClass = 'badge-developer'; }
+                    
+                    const roleBadge = `<span class="badge ${roleClass}">${roleLabel}</span>`;
                     const avatar = user.avatar_url || DEFAULT_AVATAR;
                     const count = postCounts[user.id] || 0;
                     
@@ -2258,9 +2273,11 @@
                 document.getElementById('detailUsername').textContent = `@${profile.username}`;
                 
                 const roleEl = document.getElementById('detailUserRole');
-                roleEl.textContent = profile.is_admin ? 'Admin' : 'User';
+                const userRole = profile.role || 'user';
+                roleEl.textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+                
                 // Add specific color classes based on role
-                roleEl.className = `role-badge-floating ${profile.is_admin ? 'role-admin' : 'role-user'}`;
+                roleEl.className = `role-badge-floating role-${userRole}`;
                 roleEl.style.display = 'block'; 
 
                 document.getElementById('detailUserEmail').textContent = profile.email || 'N/A';
@@ -2334,19 +2351,170 @@
                     });
                 }
 
-                // 6. Admin Console Setup (UI Only - Functionality to be added)
+                // 5. Operator Check & Console Toggle (Real-time Verification)
+                const consoleSection = document.querySelector('.admin-console-section');
+                
+                // Use a helper to ensure we have the latest role even if session hasn't refreshed
+                const getLatestRole = async () => {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return 'user';
+                    const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+                    window._userRole = prof?.role || 'user';
+                    return window._userRole;
+                };
+
+                const activeRole = await getLatestRole();
+                
+                if (activeRole === 'operator') {
+                    consoleSection.style.display = 'block';
+                    document.getElementById('consoleHelp').textContent = "Operator Mode: Use commands like '/role admin [id]'";
+                } else {
+                    consoleSection.style.display = 'none';
+                }
+
+                // 6. Admin Console Logic Implementation
                 const commandInput = document.getElementById('adminCommandInput');
                 const btnRun = document.getElementById('btnRunCommand');
                 
                 commandInput.value = '';
                 
-                const handleCommand = () => {
-                    const cmd = commandInput.value.trim();
-                    if (!cmd) return;
-                    console.log('Command entered:', cmd);
-                    commandInput.value = '';
+                const handleCommand = async () => {
+                    const cmdInput = commandInput.value.trim();
+                    if (!cmdInput) return;
+                    
+                    const myRole = await getLatestRole();
+                    if (myRole !== 'operator') {
+                        showToast("Access Denied: Operator role required.", "error");
+                        return;
+                    }
+
+                    const parts = cmdInput.split(/\s+/);
+                    const command = parts[0].toLowerCase();
+                    
+                    async function findUserByUsername(username) {
+                        if (!username) return null;
+                        const cleanName = username.replace(/^@/, '');
+                        const { data, error } = await supabase.from('profiles').select('*').eq('username', cleanName).maybeSingle();
+                        if (error) console.error("Lookup Error:", error);
+                        return data;
+                    }
+
+                    try {
+                        switch (command) {
+                            case '/role': {
+                                const newRole = parts[1]?.toLowerCase();
+                                const targetId = parts[2];
+                                const allowed = ['admin', 'developer', 'operator', 'user'];
+                                if (!newRole || !targetId) { showToast("Usage: /role [role] [id]", "error"); break; }
+                                if (allowed.includes(newRole)) {
+                                    const targetUser = await findUserByUsername(targetId);
+                                    if (targetUser) {
+                                        const { data, error } = await supabase.from('profiles').update({ role: newRole }).eq('id', targetUser.id).select();
+                                        if (error) throw error;
+                                        if (data && data.length > 0) {
+                                            showToast(`Success: ${targetUser.username} is now ${newRole}`);
+                                        } else {
+                                            showToast("Failed: RLS Policy blocked the update.", "error");
+                                        }
+                                    } else { showToast(`User ${targetId} not found.`, "error"); }
+                                } else { showToast("Invalid role name.", "error"); }
+                                break;
+                            }
+                            case '/unrole': {
+                                const targetId = parts[1];
+                                if (!targetId) { showToast("Usage: /unrole [id]", "error"); break; }
+                                const targetUser = await findUserByUsername(targetId);
+                                if (targetUser) {
+                                    const { data, error } = await supabase.from('profiles').update({ role: 'user' }).eq('id', targetUser.id).select();
+                                    if (error) throw error;
+                                    if (data && data.length > 0) {
+                                        showToast(`Unrolled: ${targetUser.username} is now User`);
+                                    } else {
+                                        showToast("Failed: Permission denied.", "error");
+                                    }
+                                } else { showToast(`User ${targetId} not found.`, "error"); }
+                                break;
+                            }
+                            case '/change': {
+                                const oldId = parts[1];
+                                const newId = parts[3];
+                                if (!oldId || parts[2] !== 'to' || !newId) { showToast("Usage: /change [old] to [new]", "error"); break; }
+                                const targetUser = await findUserByUsername(oldId);
+                                if (targetUser) {
+                                    const { data, error } = await supabase.from('profiles').update({ username: newId.replace(/^@/, '') }).eq('id', targetUser.id).select();
+                                    if (error) throw error;
+                                    if (data && data.length > 0) {
+                                        showToast(`ID Changed: ${oldId} -> ${newId}`);
+                                    } else {
+                                        showToast("Failed: ID change rejected by DB.", "error");
+                                    }
+                                } else { showToast(`User ${oldId} not found.`, "error"); }
+                                break;
+                            }
+                            case '/reset': {
+                                const type = parts[1]?.toLowerCase();
+                                const targetId = parts[2];
+                                const targetUser = await findUserByUsername(targetId);
+                                if (!targetUser) { showToast(`User ${targetId} not found.`, "error"); break; }
+                                let updateData = {};
+                                if (type === 'profile') updateData = { avatar_url: null };
+                                else if (type === 'bio') updateData = { bio: 'Capturing the world through my lens.' };
+                                else if (type === 'pw') {
+                                    const { error } = await supabase.auth.resetPasswordForEmail(targetUser.email);
+                                    if (error) throw error;
+                                    showToast(`PW Reset Sent: ${targetUser.username}`);
+                                    break;
+                                } else {
+                                    showToast("Invalid type: profile, pw, bio", "error");
+                                    break;
+                                }
+                                
+                                const { data, error } = await supabase.from('profiles').update(updateData).eq('id', targetUser.id).select();
+                                if (error) throw error;
+                                if (data && data.length > 0) showToast(`${type} reset successful.`);
+                                else showToast("Failed: Update not applied.", "error");
+                                break;
+                            }
+                            case '/delete': {
+                                const targetId = parts[1];
+                                const targetUser = await findUserByUsername(targetId);
+                                if (targetUser) {
+                                    if (confirm(`Permanently delete user ${targetUser.username}?`)) {
+                                        // Try physical deletion first for cleaner management
+                                        const { error: delErr } = await supabase.from('profiles').delete().eq('id', targetUser.id);
+                                        if (delErr) {
+                                            // fallback to soft delete if physical delete is blocked by foreign keys
+                                            await supabase.from('posts').update({ deleted_at: new Date().toISOString() }).eq('user_id', targetUser.id);
+                                            await supabase.from('profiles').update({ deleted_at: new Date().toISOString() }).eq('id', targetUser.id).select();
+                                            showToast(`User ${targetUser.username} soft-deleted.`);
+                                        } else {
+                                            showToast(`User ${targetUser.username} permanently deleted.`);
+                                        }
+                                    }
+                                } else { showToast(`User ${targetId} not found.`, "error"); }
+                                break;
+                            }
+                            case '/help':
+                                showToast("/role, /unrole, /change, /reset, /delete", "info");
+                                break;
+                            default:
+                                showToast(`Unknown command: ${command}`, "error");
+                        }
+                    } catch (err) {
+                        console.error("Critical Terminal Error:", err);
+                        showToast("Execution Error: " + err.message, "error");
+                    } finally {
+                        commandInput.value = '';
+                        await renderAdminUsers(); 
+                        if (userDetailModal.classList.contains('active')) {
+                            const { data: alive } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
+                            if (alive) await showUserDetail(userId);
+                            else userDetailModal.classList.remove('active');
+                        }
+                    }
                 };
 
+                btnRun.onclick = handleCommand;
                 commandInput.onkeydown = (e) => {
                     if (e.key === 'Enter') handleCommand();
                 };
