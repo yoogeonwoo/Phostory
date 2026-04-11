@@ -2299,6 +2299,16 @@
             if (e.target === userDetailModal) detailClose();
         });
 
+        const isStaff = (role) => ['admin', 'developer', 'operator'].includes(role);
+
+        const getLatestRole = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return 'user';
+            const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+            window._userRole = prof?.role || 'user';
+            return window._userRole;
+        };
+
         async function showUserDetail(userId) {
             try {
                 // 1. Fetch Profile info
@@ -2373,7 +2383,6 @@
                             e.stopPropagation();
                             
                             const myRole = await getLatestRole();
-                            const isStaff = (r) => ['admin', 'developer', 'operator'].includes(r);
                             if (myRole !== 'operator' && isStaff(profile.role)) {
                                 showToast("Access Denied: Administrative Tier Protection.", "error");
                                 return;
@@ -2409,15 +2418,6 @@
 
                 // 5. Operator Check & Console Toggle (Real-time Verification)
                 const consoleSection = document.querySelector('.admin-console-section');
-
-                // Use a helper to ensure we have the latest role even if session hasn't refreshed
-                const getLatestRole = async () => {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) return 'user';
-                    const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-                    window._userRole = prof?.role || 'user';
-                    return window._userRole;
-                };
 
                 const activeRole = await getLatestRole();
 
@@ -2465,7 +2465,6 @@
                     }
 
                     // Security Helper: Absolute Protection for Operator, Mutual for Staff
-                    const isStaff = (role) => ['admin', 'developer', 'operator'].includes(role);
                     const isProtected = (myRole, targetRole) => {
                         if (myRole === 'operator') return false; // Operator can do anything
                         if (targetRole === 'operator') return true; // Only Operator can touch Operator
@@ -2636,7 +2635,7 @@
             try {
                 const { data: photo, error } = await supabase
                     .from('posts')
-                    .select('*, profiles(username)')
+                    .select('*, profiles(username, role)')
                     .eq('id', photoId)
                     .single();
 
@@ -2693,7 +2692,6 @@
 
         async function updatePhotoAdmin(photoId, targetRole) {
             const myRole = await getLatestRole();
-            const isStaff = (r) => ['admin', 'developer', 'operator'].includes(r);
             if (myRole !== 'operator' && isStaff(targetRole)) {
                 showToast("Access Denied: Administrative Tier Protection.", "error");
                 return;
@@ -2725,7 +2723,6 @@
 
         async function deletePhotoAdmin(photoId, targetRole) {
             const myRole = await getLatestRole();
-            const isStaff = (r) => ['admin', 'developer', 'operator'].includes(r);
             if (myRole !== 'operator' && isStaff(targetRole)) {
                 showToast("Access Denied: Administrative Tier Protection.", "error");
                 return;
