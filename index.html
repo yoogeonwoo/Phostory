@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phostory</title>
     <meta name="description" content="Phostory - A photo blog for Instagram profiles">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
     <!-- Apply Google Fonts Outfit for a polished look -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1147,10 +1147,10 @@
                 .eq('id', session.user.id)
                 .single();
 
-            // Create profile link
+            // Create profile link (Clean Format: phostory.studio/username)
             const profileUsername = profileData?.username || emailPrefix;
-            const baseUrl = window.location.origin + window.location.pathname;
-            const fullLink = `${baseUrl}?user=${profileUsername}`;
+            const baseUrl = window.location.origin;
+            const fullLink = `${baseUrl}/${profileUsername}`;
             document.getElementById('profileLink').value = fullLink;
 
             // Update preview info
@@ -2051,11 +2051,24 @@
             });
         }
 
-        // ==========================================
-        // New Feature: Direct profile access via URL parameters
-        // ==========================================
+        // --- SPA Routing / URL Parameter Handling ---
         const urlParamsFromPage = new URLSearchParams(window.location.search);
-        const viewUserFromPage = urlParamsFromPage.get('user');
+        const userFromQuery = urlParamsFromPage.get('user');
+        
+        // Check both ?user=ID and clean /ID format
+        let targetUsername = userFromQuery;
+        
+        if (!targetUsername) {
+            const pathname = window.location.pathname.replace(/^\/|\/$/g, ''); // Strip leading/trailing slashes
+            // Ensure pathname is a valid username and not a technical file
+            if (pathname && pathname !== 'index.html' && !pathname.includes('.')) {
+                targetUsername = pathname;
+            }
+        }
+
+        if (targetUsername) {
+            loadUserProfilePage(targetUsername);
+        }
 
         async function loadUserProfilePage(username) {
             const profilePageView = document.getElementById('profilePageView');
