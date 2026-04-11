@@ -1160,16 +1160,16 @@
                 .eq('id', session.user.id)
                 .single();
 
-            // Create profile link (Clean Format: phostory.studio/username)
+            // Create profile link (Clean Format for Copying)
             const profileUsername = profileData?.username || emailPrefix;
             const baseUrl = window.location.origin.replace(/^https?:\/\//, '');
             const fullLink = `${baseUrl}/${profileUsername}`;
             document.getElementById('profileLink').value = fullLink;
 
-            // Update preview info
+            // Update preview info (Visual Mockup stays professional with https)
             const browserUrl = document.getElementById('browserUrl');
             const previewUsername = document.getElementById('previewUsername');
-            if (browserUrl) browserUrl.textContent = fullLink;
+            if (browserUrl) browserUrl.textContent = `https://${fullLink}`;
             if (previewUsername) previewUsername.textContent = `@${profileUsername}`;
 
             if (profileData) {
