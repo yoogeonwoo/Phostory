@@ -224,26 +224,39 @@ body {
 }
 
 /* Masonry Grid CSS (Modern column-count approach) */
-.masonry-grid {
-    column-count: 4;
-    column-gap: 1.5rem;
+/* New JS-based Masonry System (Fixes gaps and alignment) */
+.masonry-root {
+    display: flex;
+    gap: 1.5rem; /* 가로 간격 */
     width: 100%;
-    padding-bottom: 3rem;
+    align-items: flex-start;
 }
 
-@media (max-width: 1200px) {
-    .masonry-grid { column-count: 3; }
+.masonry-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* 세로 간격 - 가로와 완벽히 일치시킴 */
 }
 
-@media (max-width: 800px) {
-    .masonry-grid { column-count: 2; }
-}
-
-@media (max-width: 500px) {
-    .masonry-grid { 
-        column-count: 2; /* 모바일 최소 2열 유지 */
-        column-gap: 0.75rem;
+@media (max-width: 600px) {
+    .masonry-root {
+        gap: 0.75rem; /* 모바일 가로 간격 */
     }
+    .masonry-column {
+        gap: 0.75rem; /* 모바일 세로 간격 */
+    }
+}
+
+.photo-card {
+    width: 100%;
+    margin: 0 !important; /* 원치 않는 추가 여백 방지 */
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    background-color: #ffffff;
+    transform: translateZ(0);
 }
 
 /* Individual Photo Card */

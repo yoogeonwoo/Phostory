@@ -52,7 +52,7 @@
         </div>
         
         <!-- Photo cards populated via JavaScript -->
-        <div class="masonry-grid" id="masonryGrid">
+        <div class="masonry-root" id="masonryGrid">
             <!-- Data will be filled here -->
         </div>
     </main>
@@ -1475,9 +1475,11 @@
         }
 
         async function renderGrid(category = 'All') {
+            const currentFilter = category;
+            
             if (category === 'Best') {
                 masonryGrid.innerHTML = `
-                    <div style="column-span: all; text-align: center; padding: 120px 20px; color: #888; width: 100%;">
+                    <div style="text-align: center; padding: 120px 20px; color: #888; width: 100%;">
                         <h2 style="font-size: 2rem; margin-bottom: 16px; color: #111; letter-spacing: -0.03em; font-weight: 700;">✨ Top Liked is coming soon!</h2>
                         <p style="font-weight: 300; line-height: 1.7; color: #666; max-width: 500px; margin: 0 auto; font-size: 1.05rem;">
                             Our team is currently refining the algorithm to curate the most loved stories in real-time. 
@@ -1489,108 +1491,136 @@
             }
 
             const emptyMsg = category === 'Likes' ? 'Your favorite stories will appear here.' : 'Loading stories...';
-            masonryGrid.innerHTML = `<div style="column-span: all; text-align: center; padding: 40px; color: #888; width: 100%;">${emptyMsg}</div>`;
+            masonryGrid.innerHTML = `<div style="text-align: center; padding: 40px; color: #888; width: 100%;">${emptyMsg}</div>`;
             
-            // Load posts from DB
+            // Load photos
             let photos = await fetchPosts(null, category); 
-            
-            // Fallback to dummy data if no real data exists
             if (photos.length === 0 && category === 'All') {
                 photos = getDummyPhotos(category);
             }
             
             masonryGrid.innerHTML = '';
-            
             if (photos.length === 0) {
                 const noResultMsg = category === 'Likes' ? "You haven't liked any stories yet. Explore and try clicking the heart to like stories you love!" : "No stories found.";
-                masonryGrid.innerHTML = `<div style="column-span: all; text-align: center; padding: 60px; color: #888; font-weight:300; width: 100%;">${noResultMsg}</div>`;
+                masonryGrid.innerHTML = `<div style="text-align: center; padding: 60px; color: #888; font-weight:300; width: 100%;">${noResultMsg}</div>`;
                 return;
             }
-            
-            photos.forEach(photo => {
-                const card = document.createElement('div');
-                card.className = 'photo-card fade-in';
 
-                card.innerHTML = `
-                    <div class="card-image-wrapper">
-                        <img src="${photo.url}" alt="${photo.title}" loading="lazy">
-                    </div>
-                    <div class="glass-overlay">
-                        <div class="overlay-content">
-                            <h3 class="photo-title">${photo.title}</h3>
-                            <div class="photo-meta">
-                                <div class="photographer">
-                                    <img src="${photo.avatar}" alt="${photo.author}" class="photographer-avatar">
-                                    <span>${photo.author}</span>
-                                </div>
-                                <div class="action-buttons">
-                                    <button class="btn-icon like-btn" aria-label="Like" title="Like">
-                                        <svg class="heart-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                                    </button>
-                                </div>
+            // --- Robust Responsive Masonry Logic ---
+            const renderByWidth = () => {
+                const width = window.innerWidth;
+                let colCount = 4;
+                if (width <= 600) colCount = 2;
+                else if (width <= 900) colCount = 3;
+                else if (width <= 1200) colCount = 4;
+                else if (width <= 1600) colCount = 5;
+                else colCount = 6; // 계속해서 늘어남
+
+                masonryGrid.innerHTML = '';
+                const columns = [];
+                for (let i = 0; i < colCount; i++) {
+                    const col = document.createElement('div');
+                    col.className = 'masonry-column';
+                    masonryGrid.appendChild(col);
+                    columns.push(col);
+                }
+
+                // Distribute photos to fill columns horizontally first (fixes empty space)
+                photos.forEach((photo, index) => {
+                    const colIdx = index % colCount;
+                    const card = createPhotoCard(photo);
+                    columns[colIdx].appendChild(card);
+                });
+            };
+
+            renderByWidth();
+            
+            // Store current context for resize handler
+            masonryGrid._currentPhotos = photos;
+            masonryGrid._currentRenderer = renderByWidth;
+        }
+
+        // Handle dynamic resizing without re-fetching
+        window.addEventListener('resize', () => {
+            if (masonryGrid._currentRenderer && masonryGrid._currentPhotos) {
+                // Throttled or direct? Let's go direct for immediate 'wow' effect
+                masonryGrid._currentRenderer();
+            }
+        });
+
+        function createPhotoCard(photo) {
+            const card = document.createElement('div');
+            card.className = 'photo-card fade-in';
+            card.innerHTML = `
+                <div class="card-image-wrapper">
+                    <img src="${photo.url}" alt="${photo.title}" loading="lazy">
+                </div>
+                <div class="glass-overlay">
+                    <div class="overlay-content">
+                        <h3 class="photo-title">${photo.title}</h3>
+                        <div class="photo-meta">
+                            <div class="photographer">
+                                <img src="${photo.avatar}" alt="${photo.author}" class="photographer-avatar">
+                                <span>${photo.author}</span>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn-icon like-btn" aria-label="Like" title="Like">
+                                    <svg class="heart-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                </button>
                             </div>
                         </div>
                     </div>
-                `;
-                
-                const likeBtn = card.querySelector('.like-btn');
-                const heartIcon = likeBtn.querySelector('.heart-icon');
+                </div>
+            `;
+            
+            const likeBtn = card.querySelector('.like-btn');
+            const heartIcon = likeBtn.querySelector('.heart-icon');
+            if (photo.isLiked) {
+                likeBtn.classList.add('active');
+                heartIcon.style.fill = '#ff4b4b';
+                heartIcon.style.stroke = '#ff4b4b';
+            }
 
-                // Set initial like state
-                if (photo.isLiked) {
-                    likeBtn.classList.add('active');
+            likeBtn.addEventListener('click', async (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    showToast('Please login to like stories.', 'error');
+                    loginModal.classList.add('active');
+                    return;
+                }
+                const isCurrentlyLiked = likeBtn.classList.contains('active');
+                likeBtn.classList.toggle('active');
+                if (!isCurrentlyLiked) {
                     heartIcon.style.fill = '#ff4b4b';
                     heartIcon.style.stroke = '#ff4b4b';
+                    likeBtn.style.transform = 'scale(1.2)';
+                    setTimeout(() => likeBtn.style.transform = '', 200);
+                } else {
+                    heartIcon.style.fill = 'none';
+                    heartIcon.style.stroke = 'currentColor';
                 }
-
-                likeBtn.addEventListener('click', async (e) => {
-                    e.preventDefault(); 
-                    e.stopPropagation();
-
-                    // Check login status
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session) {
-                        showToast('Please login to like stories.', 'error');
-                        loginModal.classList.add('active');
-                        return;
-                    }
-
-                    const isCurrentlyLiked = likeBtn.classList.contains('active');
-                    
-                    // Optimistic UI update
-                    likeBtn.classList.toggle('active');
+                try {
                     if (!isCurrentlyLiked) {
-                        heartIcon.style.fill = '#ff4b4b';
-                        heartIcon.style.stroke = '#ff4b4b';
-                        likeBtn.style.transform = 'scale(1.2)';
-                        setTimeout(() => likeBtn.style.transform = '', 200);
+                        await supabase.from('likes').insert({ user_id: session.user.id, post_id: photo.id });
                     } else {
-                        heartIcon.style.fill = 'none';
-                        heartIcon.style.stroke = 'currentColor';
+                        await supabase.from('likes').delete().eq('user_id', session.user.id).eq('post_id', photo.id);
                     }
-
-                    // Server sync
-                    try {
-                        if (!isCurrentlyLiked) {
-                            // Add like
-                            await supabase.from('likes').insert({ 
-                                user_id: session.user.id, 
-                                post_id: photo.id 
-                            });
-                        } else {
-                            // Remove like
-                            await supabase.from('likes')
-                                .delete()
-                                .eq('user_id', session.user.id)
-                                .eq('post_id', photo.id);
-                        }
-                    } catch (err) {
-                        console.error('Like toggle error:', err);
-                    }
-                });
-
-                masonryGrid.appendChild(card);
+                } catch (err) { console.error('Like error:', err); }
             });
+
+            // Touch interaction for mobile info reveal
+            card.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.like-btn')) return;
+                if (!card.classList.contains('touch-active')) {
+                    document.querySelectorAll('.photo-card.touch-active').forEach(c => c.classList.remove('touch-active'));
+                    card.classList.add('touch-active');
+                } else {
+                    card.classList.remove('touch-active');
+                }
+            }, { passive: true });
+
+            return card;
         }
 
         // Initial render
