@@ -2067,35 +2067,61 @@ body {
     color: #94a3b8;
 }
 
-/* Badges */
+/* 
+   ==========================================================================
+   Standardized Role Badge System
+   ==========================================================================
+*/
 .badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.badge-admin { background-color: #fdf2f8; color: #db2777; }
-.role-badge-floating.role-user { background-color: #f1f5f9; color: #64748b; }
-
-/* Official Badge Styling */
-.badge-official {
-    background-color: #dbeafe;
-    color: #1d4ed8;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.65rem;
-    font-weight: 700;
+    justify-content: center;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    vertical-align: middle;
-    margin-left: 6px;
-    display: inline-block;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s ease;
 }
-.badge-public { background-color: #ecfdf5; color: #059669; }
-.badge-private { background-color: #fffbeb; color: #d97706; }
+
+/* Role Specific Colors */
+.badge-operator {
+    background-color: #fffbeb;
+    color: #92400e;
+    border-color: #fde68a;
+    box-shadow: 0 2px 4px rgba(251, 191, 36, 0.1);
+}
+
+.badge-admin {
+    background-color: #fdf2f8;
+    color: #9d174d;
+    border-color: #fbcfe8;
+}
+
+.badge-developer {
+    background-color: #f5f3ff;
+    color: #5b21b6;
+    border-color: #ddd6fe;
+}
+
+.badge-official {
+    background-color: #f0f9ff;
+    color: #0369a1;
+    border-color: #bae6fd;
+}
+
+.badge-user {
+    background-color: #f8fafc;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.badge-public { background-color: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+.badge-private { background-color: #fffbeb; color: #92400e; border-color: #fde68a; }
 
 /* Dashboard Actions */
 .admin-actions {

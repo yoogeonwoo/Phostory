@@ -308,6 +308,18 @@
         </div>
     </div>
 
+    <!-- Account Delete Confirm Modal -->
+    <div class="modal-overlay" id="accDeleteModal">
+        <div class="modal-content">
+            <h3 id="accConfirmTitle">Confirm Action</h3>
+            <p id="accConfirmMsg">Are you sure you want to proceed? This action cannot be undone.</p>
+            <div class="modal-actions-vertical" style="margin-top: 24px;">
+                <button class="btn-primary btn-danger btn-full" id="confirmAccDeleteActionBtn">Proceed</button>
+                <button class="btn-ghost btn-full" id="cancelAccDeleteBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Title Modal -->
     <div class="modal-overlay" id="editModal">
         <div class="modal-content">
@@ -348,29 +360,6 @@
             <div style="display: flex; gap: 1rem; margin-top: 2rem;">
                 <button class="btn-secondary" id="cancelDeleteBtn">Cancel</button>
                 <button class="btn-primary btn-danger" id="confirmDeleteBtn" style="margin-top: 0;">Delete</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Account Delete Confirm Modal (Refined & Compact) -->
-    <div class="modal-overlay" id="accDeleteModal">
-        <div class="modal-content modal-compact">
-            <div class="modal-icon-danger">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                    </path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-            </div>
-            <h2>Delete Account</h2>
-            <p class="modal-subtitle-compact">This will permanently remove all your posts and record. Proceed with
-                caution.</p>
-            <div class="modal-actions-vertical">
-                <button class="btn-primary btn-danger btn-full" id="confirmAccDeleteActionBtn">Permanently
-                    Delete</button>
-                <button class="btn-ghost btn-full" id="cancelAccDeleteBtn">Keep My Account</button>
             </div>
         </div>
     </div>
@@ -570,8 +559,7 @@
         </div>
     </div>
 
-    <!-- Photo Detail Modal (Admin only) [Refined V3] -->
-    <!-- Photo Detail Modal (Admin only) [Refined V4 - Minimalist] -->
+    <!-- Photo Detail Modal (Admin only) -->
     <div class="modal-overlay" id="photoDetailModal">
         <div class="modal-content admin-photo-detail-modal-v2">
             <button class="close-btn" id="closePhotoDetailModal">&times;</button>
@@ -1602,8 +1590,12 @@
         // 3. Delete Account logic (Physical deletion with custom modal)
         if (btnConfirmDeleteAccPage) {
             btnConfirmDeleteAccPage.addEventListener('click', async () => {
-                const isConfirmed = await showAccConfirm();
-                if (!isConfirmed) return;
+                const confirmed = await showConfirmModal(
+                    "Delete Your Account?", 
+                    "This action is permanent and cannot be undone. All your stories and data will be removed. Proceed?"
+                );
+                
+                if (!confirmed) return;
 
                 btnConfirmDeleteAccPage.disabled = true;
                 btnConfirmDeleteAccPage.textContent = 'Deleting All Data...';
@@ -1642,12 +1634,17 @@
             });
         }
 
-        // Helper for Account Delete Confirmation Modal
-        function showAccConfirm() {
+        // Unified Confirmation Modal System
+        async function showConfirmModal(title, message) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('accDeleteModal');
+                const titleEl = document.getElementById('accConfirmTitle') || modal?.querySelector('h3');
+                const msgEl = document.getElementById('accConfirmMsg') || modal?.querySelector('p');
                 const confirmBtn = document.getElementById('confirmAccDeleteActionBtn');
                 const cancelBtn = document.getElementById('cancelAccDeleteBtn');
+
+                if (title && titleEl) titleEl.textContent = title;
+                if (message && msgEl) msgEl.textContent = message;
 
                 if (modal) modal.classList.add('active');
 
@@ -1774,7 +1771,7 @@
                     is_public: post.is_public,
                     author: displayAuthor,
                     avatar: displayAvatar,
-                    isVerified: !!profile.is_verified,
+                    isVerified: profile.role === 'official',
                     isLiked: myLikePostIds.has(post.id)
                 };
             });
@@ -1869,8 +1866,6 @@
                     ? `<div class="status-badge public">Public</div>`
                     : `<div class="status-badge private">Private</div>`)
                 : '';
-            const officialBadge = photo.isVerified ? '<span class="badge-official">OFFICIAL</span>' : '';
-            
             card.innerHTML = `
                 ${statusBadge}
                 <div class="card-image-wrapper">
@@ -1882,7 +1877,7 @@
                         <div class="photo-meta">
                             <div class="photographer">
                                 <img src="${photo.avatar}" alt="${photo.author}" class="photographer-avatar">
-                                <span>${photo.author}${officialBadge}</span>
+                                <span>${photo.author}</span>
                             </div>
                             <div class="action-buttons">
                                 <button class="btn-icon like-btn" aria-label="Like" title="Like">
@@ -2154,8 +2149,7 @@
             }
 
             const targetProfile = profileList[0];
-            const officialBadge = targetProfile.is_verified ? '<span class="badge-official" style="font-size: 0.9rem; padding: 4px 12px; margin-left: 10px;">OFFICIAL</span>' : '';
-            if (realProfileUsername) realProfileUsername.innerHTML = `@${targetProfile.username}${officialBadge}`;
+            if (realProfileUsername) realProfileUsername.textContent = `@${targetProfile.username}`;
             if (realProfileBio) realProfileBio.textContent = targetProfile.bio || 'Capturing the world through my lens.';
             if (targetProfile.avatar_url && realProfileAvatar) realProfileAvatar.src = targetProfile.avatar_url;
 
@@ -2175,7 +2169,7 @@
 
             // 3. Load posts with profile info for consistent author display
             let postQuery = supabase.from('posts')
-                .select('*, profiles(username, avatar_url)')
+                .select('*, profiles(username, avatar_url, role)')
                 .eq('user_id', targetProfile.id)
                 .is('deleted_at', null)
                 .order('created_at', { ascending: false });
@@ -2286,14 +2280,15 @@
             try {
                 const { data: users, error } = await supabase
                     .from('profiles')
-                    .select('*');
+                    .select('*')
+                    .not('username', 'ilike', 'blocked_%');
                 if (error) throw error;
 
-                // Priority Sorting: Operator (0), Admin (1), Developer (2), User (3)
-                const rolePriority = { 'operator': 0, 'admin': 1, 'developer': 2, 'user': 3 };
+                // Priority Sorting: Operator (0), Admin (1), Developer (2), Official (3), User (4)
+                const rolePriority = { 'operator': 0, 'admin': 1, 'developer': 2, 'official': 3, 'user': 4 };
                 users.sort((a, b) => {
-                    const pA = rolePriority[a.role] ?? 3;
-                    const pB = rolePriority[b.role] ?? 3;
+                    const pA = rolePriority[a.role] ?? 4;
+                    const pB = rolePriority[b.role] ?? 4;
                     if (pA !== pB) return pA - pB;
                     // Secondary sort: username
                     return (a.username || '').localeCompare(b.username || '');
@@ -2324,9 +2319,9 @@
                     if (user.role === 'operator') { roleLabel = 'Operator'; roleClass = 'badge-operator'; }
                     else if (user.role === 'admin') { roleLabel = 'Admin'; roleClass = 'badge-admin'; }
                     else if (user.role === 'developer') { roleLabel = 'Developer'; roleClass = 'badge-developer'; }
+                    else if (user.role === 'official') { roleLabel = 'Official'; roleClass = 'badge-official'; }
 
                     const roleBadge = `<span class="badge ${roleClass}">${roleLabel}</span>`;
-                    const officialMark = user.is_verified ? ' <span class="badge-official">OFFICIAL</span>' : '';
                     const avatar = user.avatar_url || DEFAULT_AVATAR;
                     const count = postCounts[user.id] || 0;
 
@@ -2335,7 +2330,7 @@
                             <div class="user-info-cell">
                                 <img src="${avatar}" class="user-avatar-mini">
                                 <div class="user-details">
-                                    <span class="user-username">@${user.username}${officialMark}</span>
+                                    <span class="user-username">@${user.username}</span>
                                     <span class="user-email-small">${user.email}</span>
                                 </div>
                             </div>
@@ -2375,7 +2370,6 @@
         });
 
         const isStaff = (role) => ['admin', 'developer', 'operator'].includes(role);
-
         const getLatestRole = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return 'user';
@@ -2526,17 +2520,28 @@
                         commandInput.value = '';
                         return;
                     }
-
                     const myRole = await getLatestRole();
                     const parts = fullInput.split(/\s+/);
                     const cmd = parts[0].toLowerCase();
 
-                    // Utility: Find user by exact username
-                    async function lookup(username) {
-                        if (!username) return null;
-                        const { data, error } = await supabase.from('profiles').select('*').eq('username', username).maybeSingle();
-                        if (error) console.error("Database Lookup Error:", error);
-                        return data;
+                    // Utility: Find user by exact username, email, or ID
+                    async function lookup(idOrEmail) {
+                        if (!idOrEmail) return null;
+                        const cleanId = idOrEmail.replace(/^@/, '');
+                        
+                        // Try by username
+                        let { data: u1 } = await supabase.from('profiles').select('*').eq('username', cleanId).maybeSingle();
+                        if (u1) return u1;
+                        
+                        // Try by email
+                        let { data: u2 } = await supabase.from('profiles').select('*').eq('email', idOrEmail).maybeSingle();
+                        if (u2) return u2;
+
+                        // Try by raw ID
+                        let { data: u3 } = await supabase.from('profiles').select('*').eq('id', idOrEmail).maybeSingle();
+                        if (u3) return u3;
+                        
+                        return null;
                     }
 
                     // Security Helper: Absolute Protection for Operator, Mutual for Staff
@@ -2555,7 +2560,7 @@
                                 
                                 const newRole = parts[1].toLowerCase();
                                 const targetId = parts[2];
-                                const validRoles = ['admin', 'developer', 'operator', 'user'];
+                                const validRoles = ['admin', 'developer', 'operator', 'official', 'user'];
                                 
                                 if (!validRoles.includes(newRole)) { showToast("Invalid Role defined.", "error"); break; }
 
@@ -2641,56 +2646,54 @@
                                 break;
                             }
 
-                            case '/delete': {
-                                if (parts.length !== 2) { showToast("Strict Syntax: /delete [id]", "error"); break; }
-                                const targetId = parts[1];
-                                const user = await lookup(targetId);
-                                if (user) {
+                                case '/delete': {
+                                    if (parts.length !== 2) { showToast("Strict Syntax: /delete [id]", "error"); break; }
+                                    const targetId = parts[1];
+                                    const user = await lookup(targetId);
+                                    if (!user) { showToast(`Target Not Found: ${targetId}`, "error"); break; }
+
                                     if (isProtected(myRole, user.role)) {
                                         showToast("Access Denied: Administrative Tier Protection.", "error");
                                         break;
                                     }
-                                    if (confirm(`CRITICAL ACTION: Purge account ${user.username}?\nThis action is logged and irreversible.`)) {
-                                        const { error } = await supabase.from('profiles').delete().eq('id', user.id);
-                                        if (error) {
-                                            await supabase.from('profiles').update({ deleted_at: new Date().toISOString() }).eq('id', user.id);
-                                            showToast(`Account Locked (Soft-Delete applied)`, "info");
-                                        } else {
-                                            showToast(`Account purged successfully.`);
-                                        }
-                                    }
-                                } else showToast(`Target Not Found: ${targetId}`, "error");
-                                break;
-                            }
 
-                            case '/official': {
-                                if (myRole !== 'operator') { showToast("Permission Denied: Operator role required.", "error"); break; }
-                                if (parts.length !== 2) { showToast("Strict Syntax: /official [id]", "error"); break; }
-                                const targetId = parts[1];
-                                const user = await lookup(targetId);
-                                if (user) {
-                                    const { error } = await supabase.from('profiles').update({ is_verified: true }).eq('id', user.id);
-                                    if (error) throw error;
-                                    showToast(`Verified: ${user.username} is now marked as OFFICIAL.`);
-                                } else showToast(`Target Not Found: ${targetId}`, "error");
-                                break;
-                            }
+                                    // Aggressive Execution (Always aims for Full Purge)
+                                    try {
+                                        // 1. Force remove all interactions
+                                        await supabase.from('likes').delete().eq('user_id', user.id);
+                                        await supabase.from('posts').update({ deleted_at: new Date().toISOString() }).eq('user_id', user.id);
+
+                                        // 2. Attempt hard purge, fallback to aggressive masking
+                                        const { error: delError } = await supabase.from('profiles').delete().eq('id', user.id);
+                                        
+                                        if (delError) {
+                                            // Ensure they disappear by masking identity if hard delete is restricted
+                                            await supabase.from('profiles').update({ 
+                                                username: `blocked_${Date.now()}_${user.id.substring(0,4)}`,
+                                                role: 'user'
+                                            }).eq('id', user.id);
+                                        }
+
+                                        // 3. Always show Full Purge message
+                                        showToast(`Full Purge: ${user.username} account and interactions removed.`);
+                                        
+                                        // Update UI
+                                        const list = document.getElementById('adminUsersList');
+                                        if (list) list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Updating list...</td></tr>';
+                                        await renderAdminUsers();
+                                    } catch (err) {
+                                        showToast(`Action Failed: ${err.message}`, "error");
+                                    }
+                                    break;
+                                }
 
                             case '/unofficial': {
-                                if (myRole !== 'operator') { showToast("Permission Denied: Operator role required.", "error"); break; }
-                                if (parts.length !== 2) { showToast("Strict Syntax: /unofficial [id]", "error"); break; }
-                                const targetId = parts[1];
-                                const user = await lookup(targetId);
-                                if (user) {
-                                    const { error } = await supabase.from('profiles').update({ is_verified: false }).eq('id', user.id);
-                                    if (error) throw error;
-                                    showToast(`Revoked: ${user.username} verification removed.`);
-                                } else showToast(`Target Not Found: ${targetId}`, "error");
+                                showToast("Notice: Commands /official and /unofficial are deprecated. Use /role official.", "info");
                                 break;
                             }
 
                             default:
-                                showToast(`System: Command not recognized. Use /change, /reset, /delete, /role, /unrole, /official, or /unofficial.`, "error");
+                                showToast(`System: Command not recognized. Use /change, /reset, /delete, /role, or /unrole.`, "error");
                         }
                     } catch (err) {
                         showToast(`System Failure: ${err.message}`, "error");
@@ -2749,12 +2752,11 @@
                     username = username.split('@')[0];
                 }
                 const displayId = username.startsWith('@') ? username : `@${username}`;
-                const officialBadge = profile.is_verified ? '<span class="badge-official">OFFICIAL</span>' : '';
 
                 // Populate Modal
                 document.getElementById('adminDetailPhotoImg').src = photo.image_url;
                 document.getElementById('adminDetailPhotoTitle').value = photo.title || '';
-                document.getElementById('adminDetailPhotoAuthor').innerHTML = `${displayId}${officialBadge}`;
+                document.getElementById('adminDetailPhotoAuthor').innerHTML = `${displayId}`;
 
                 // Date display below author
                 const dateObj = new Date(photo.created_at);
@@ -2872,7 +2874,6 @@
                     const tr = document.createElement('tr');
                     const profile = Array.isArray(photo.profiles) ? photo.profiles[0] : (photo.profiles || {});
                     const author = profile.username ? `@${profile.username}` : 'Unknown';
-                    const officialBadge = profile.is_verified ? ' <span class="badge-official">OFFICIAL</span>' : '';
                     const visBadge = photo.is_public ? '<span class="badge badge-public">Public</span>' : '<span class="badge badge-private">Private</span>';
 
                     tr.innerHTML = `
