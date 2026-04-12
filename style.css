@@ -1463,8 +1463,8 @@ body {
     }
     
     .browser-body {
-        padding: 1.5rem 1rem;
-        max-height: 400px;
+        padding: 1.2rem 0.6rem;
+        max-height: 480px;
     }
 
     .profile-hero {
@@ -1472,14 +1472,14 @@ body {
     }
 
     .profile-avatar-wrap {
-        width: 60px;
-        height: 60px;
-        margin-bottom: 10px;
+        width: 55px;
+        height: 55px;
+        margin-bottom: 8px;
     }
 
     .profile-name {
-        font-size: 1.1rem;
-        margin-bottom: 4px;
+        font-size: 1.05rem;
+        margin-bottom: 2px;
     }
 
     .profile-bio {
@@ -1628,6 +1628,10 @@ body {
 @media (max-width: 600px) {
     .mini-masonry {
         column-count: 2;
+        column-gap: 0.8rem;
+    }
+    .mini-card {
+        margin-bottom: 0.8rem;
     }
 }
 

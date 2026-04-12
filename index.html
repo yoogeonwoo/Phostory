@@ -2320,10 +2320,12 @@
             list.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px;">Loading users...</td></tr>';
 
             try {
+                // Filter out both blocked and deleted temporary usernames
                 const { data: users, error } = await supabase
                     .from('profiles')
                     .select('*')
-                    .not('username', 'ilike', 'blocked_%');
+                    .not('username', 'ilike', 'blocked_%')
+                    .not('username', 'ilike', 'deleted_%');
                 if (error) throw error;
 
                 // Priority Sorting: Operator (0), Admin (1), Developer (2), Official (3), User (4)
@@ -2703,29 +2705,29 @@
                                         break;
                                     }
 
-                                    // Aggressive Execution (Always aims for Full Purge)
+                                    // Nuclear Purge (Calls backend RPC to wipe Auth + Profiles + Data)
                                     try {
-                                        // 1. Force remove all interactions
+                                        // 1. Wipe activity first
                                         await supabase.from('likes').delete().eq('user_id', user.id);
                                         await supabase.from('posts').update({ deleted_at: new Date().toISOString() }).eq('user_id', user.id);
 
-                                        // 2. Attempt hard purge, fallback to aggressive masking
-                                        const { error: delError } = await supabase.from('profiles').delete().eq('id', user.id);
+                                        // 2. Call the Security Definer Function (Requires the SQL setup I provided)
+                                        // This snaps the finger and wipes the account from Auth and Profiles simultaneously.
+                                        const { error: rpcError } = await supabase.rpc('delete_user_by_admin', { target_id: user.id });
                                         
-                                        if (delError) {
-                                            // Ensure they disappear by masking identity if hard delete is restricted
+                                        if (rpcError) {
+                                            console.warn("RPC Failed. Attempting frontend-only fallback...", rpcError);
+                                            // Fallback if SQL function hasn't been set up yet
+                                            await supabase.from('profiles').delete().eq('id', user.id);
                                             await supabase.from('profiles').update({ 
-                                                username: `blocked_${Date.now()}_${user.id.substring(0,4)}`,
+                                                username: `deleted_${Date.now()}_${user.id.substring(0,4)}`,
                                                 role: 'user'
                                             }).eq('id', user.id);
+                                            showToast(`Limited Purge: Profile masked. (Did you run the SQL?)`, "warning");
+                                        } else {
+                                            showToast(`Nuclear Purge: ${user.username} fully erased from system.`);
                                         }
-
-                                        // 3. Always show Full Purge message
-                                        showToast(`Full Purge: ${user.username} account and interactions removed.`);
                                         
-                                        // Update UI
-                                        const list = document.getElementById('adminUsersList');
-                                        if (list) list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Updating list...</td></tr>';
                                         await renderAdminUsers();
                                     } catch (err) {
                                         showToast(`Action Failed: ${err.message}`, "error");
