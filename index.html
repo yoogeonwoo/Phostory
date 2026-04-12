@@ -19,7 +19,27 @@
         }(window.location))
     </script>
     <meta name="description" content="Phostory - A photo blog for Instagram profiles">
-    <link rel="stylesheet" href="/style.css">
+    <!-- Smart Path Resolver for SPA Routing -->
+    <script>
+        (function() {
+            var path = window.location.pathname;
+            // If we are at a deep path (like /username), adjust relative links
+            if (path.replace(/^\/|\/$/g, '').split('/').length > 0 && 
+                !path.endsWith('/') && !path.endsWith('index.html') && path !== '/') {
+                var depth = path.replace(/^\/|\/$/g, '').split('/').length;
+                if (window.location.hostname.includes('github.io')) {
+                    // GitHub Pages subdirectory check
+                    var parts = path.split('/');
+                    if (parts.length > 2) {
+                        document.write('<base href="' + window.location.origin + '/' + parts[1] + '/">');
+                    }
+                } else {
+                    document.write('<base href="/">');
+                }
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="style.css">
     <!-- Apply Google Fonts Outfit for a polished look -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1691,7 +1711,7 @@
 
                     // 2. Fetch posts with those IDs
                     query = supabase.from('posts')
-                        .select('*, profiles(username, avatar_url)')
+                        .select('*, profiles(*)')
                         .in('id', likedIds)
                         .is('deleted_at', null)
                         .order('created_at', { ascending: false });
@@ -1699,23 +1719,28 @@
                 } else if (userId) {
                     // [Filter: My posts only]
                     query = supabase.from('posts')
-                        .select('*, profiles(username, avatar_url)')
+                        .select('*, profiles(*)')
                         .eq('user_id', userId)
                         .is('deleted_at', null)
                         .order('created_at', { ascending: false });
                 } else {
                     // [Filter: Public posts only]
                     query = supabase.from('posts')
-                        .select('*, profiles(username, avatar_url)')
+                        .select('*, profiles(*)')
                         .eq('is_public', true)
                         .is('deleted_at', null)
                         .order('created_at', { ascending: false });
                 }
 
                 const { data: realPosts, error } = await query;
-                if (error) throw error;
-
-                // Create a set of liked post IDs
+                if (error) {
+                    console.error('Supabase Query Error:', error);
+                    // Fallback to fetch without profiles join if join fails
+                    const { data: fallbackPosts } = await supabase.from('posts').select('*').eq('is_public', true).is('deleted_at', null).order('created_at', { ascending: false });
+                    return mapPosts(fallbackPosts || [], new Set());
+                }
+                
+                // Fetch likes if user logged in
                 let myLikePostIds = new Set();
                 if (currentUserId) {
                     const { data: myCheckLikes } = await supabase.from('likes').select('post_id').eq('user_id', currentUserId);
@@ -1731,9 +1756,13 @@
 
         // Separate mapping logic
         function mapPosts(posts, myLikePostIds = new Set()) {
-            if (!posts) return [];
+            if (!posts || !Array.isArray(posts)) return [];
             return posts.map(post => {
-                const profile = Array.isArray(post.profiles) ? post.profiles[0] : (post.profiles || {});
+                // Defensive profile extraction
+                let profile = {};
+                if (post.profiles) {
+                    profile = Array.isArray(post.profiles) ? (post.profiles[0] || {}) : post.profiles;
+                }
 
                 const displayAuthor = profile.username ? `@${profile.username.replace(/^@/, '')}` : (post.user_id ? `@user_${post.user_id.substring(0, 6)}` : 'Unknown');
                 const displayAvatar = profile.avatar_url || DEFAULT_AVATAR;
@@ -1741,10 +1770,11 @@
                 return {
                     id: post.id,
                     url: post.image_url,
-                    title: post.title,
+                    title: post.title || 'Untitled',
                     is_public: post.is_public,
                     author: displayAuthor,
                     avatar: displayAvatar,
+                    isVerified: !!profile.is_verified,
                     isLiked: myLikePostIds.has(post.id)
                 };
             });
@@ -1752,6 +1782,9 @@
 
         async function renderGrid(category = 'All') {
             const currentFilter = category;
+            
+            // Critical: Reset column count tracker so the renderer is forced to run even if width is unchanged
+            if (masonryGrid) masonryGrid._currentColCount = null;
 
             if (category === 'Best') {
                 masonryGrid.innerHTML = `
@@ -1836,6 +1869,8 @@
                     ? `<div class="status-badge public">Public</div>`
                     : `<div class="status-badge private">Private</div>`)
                 : '';
+            const officialBadge = photo.isVerified ? '<span class="badge-official">OFFICIAL</span>' : '';
+            
             card.innerHTML = `
                 ${statusBadge}
                 <div class="card-image-wrapper">
@@ -1847,7 +1882,7 @@
                         <div class="photo-meta">
                             <div class="photographer">
                                 <img src="${photo.avatar}" alt="${photo.author}" class="photographer-avatar">
-                                <span>${photo.author}</span>
+                                <span>${photo.author}${officialBadge}</span>
                             </div>
                             <div class="action-buttons">
                                 <button class="btn-icon like-btn" aria-label="Like" title="Like">
@@ -2119,6 +2154,8 @@
             }
 
             const targetProfile = profileList[0];
+            const officialBadge = targetProfile.is_verified ? '<span class="badge-official" style="font-size: 0.9rem; padding: 4px 12px; margin-left: 10px;">OFFICIAL</span>' : '';
+            if (realProfileUsername) realProfileUsername.innerHTML = `@${targetProfile.username}${officialBadge}`;
             if (realProfileBio) realProfileBio.textContent = targetProfile.bio || 'Capturing the world through my lens.';
             if (targetProfile.avatar_url && realProfileAvatar) realProfileAvatar.src = targetProfile.avatar_url;
 
@@ -2289,6 +2326,7 @@
                     else if (user.role === 'developer') { roleLabel = 'Developer'; roleClass = 'badge-developer'; }
 
                     const roleBadge = `<span class="badge ${roleClass}">${roleLabel}</span>`;
+                    const officialMark = user.is_verified ? ' <span class="badge-official">OFFICIAL</span>' : '';
                     const avatar = user.avatar_url || DEFAULT_AVATAR;
                     const count = postCounts[user.id] || 0;
 
@@ -2297,7 +2335,7 @@
                             <div class="user-info-cell">
                                 <img src="${avatar}" class="user-avatar-mini">
                                 <div class="user-details">
-                                    <span class="user-username">@${user.username}</span>
+                                    <span class="user-username">@${user.username}${officialMark}</span>
                                     <span class="user-email-small">${user.email}</span>
                                 </div>
                             </div>
@@ -2464,7 +2502,7 @@
                 if (canAccessTerminal) {
                     consoleSection.style.display = 'block';
                     if (activeRole === 'operator') {
-                        document.getElementById('consoleHelp').innerHTML = `<span style="color: #854d0e">Operator Mode:</span> /role, /unrole, /change, /reset, /delete`;
+                        document.getElementById('consoleHelp').innerHTML = `<span style="color: #854d0e">Operator Mode:</span> /role, /unrole, /change, /reset, /delete, /official, /unofficial`;
                     } else {
                         document.getElementById('consoleHelp').innerHTML = `<span style="color: #64748b">${activeRole.charAt(0).toUpperCase() + activeRole.slice(1)} Mode:</span> /change, /reset, /delete`;
                     }
@@ -2625,8 +2663,34 @@
                                 break;
                             }
 
+                            case '/official': {
+                                if (myRole !== 'operator') { showToast("Permission Denied: Operator role required.", "error"); break; }
+                                if (parts.length !== 2) { showToast("Strict Syntax: /official [id]", "error"); break; }
+                                const targetId = parts[1];
+                                const user = await lookup(targetId);
+                                if (user) {
+                                    const { error } = await supabase.from('profiles').update({ is_verified: true }).eq('id', user.id);
+                                    if (error) throw error;
+                                    showToast(`Verified: ${user.username} is now marked as OFFICIAL.`);
+                                } else showToast(`Target Not Found: ${targetId}`, "error");
+                                break;
+                            }
+
+                            case '/unofficial': {
+                                if (myRole !== 'operator') { showToast("Permission Denied: Operator role required.", "error"); break; }
+                                if (parts.length !== 2) { showToast("Strict Syntax: /unofficial [id]", "error"); break; }
+                                const targetId = parts[1];
+                                const user = await lookup(targetId);
+                                if (user) {
+                                    const { error } = await supabase.from('profiles').update({ is_verified: false }).eq('id', user.id);
+                                    if (error) throw error;
+                                    showToast(`Revoked: ${user.username} verification removed.`);
+                                } else showToast(`Target Not Found: ${targetId}`, "error");
+                                break;
+                            }
+
                             default:
-                                showToast(`System: Command not recognized. Use /change, /reset, /delete, /role, or /unrole.`, "error");
+                                showToast(`System: Command not recognized. Use /change, /reset, /delete, /role, /unrole, /official, or /unofficial.`, "error");
                         }
                     } catch (err) {
                         showToast(`System Failure: ${err.message}`, "error");
@@ -2672,7 +2736,7 @@
             try {
                 const { data: photo, error } = await supabase
                     .from('posts')
-                    .select('*, profiles(username, role)')
+                    .select('*, profiles(*)')
                     .eq('id', photoId)
                     .single();
 
@@ -2685,11 +2749,12 @@
                     username = username.split('@')[0];
                 }
                 const displayId = username.startsWith('@') ? username : `@${username}`;
+                const officialBadge = profile.is_verified ? '<span class="badge-official">OFFICIAL</span>' : '';
 
                 // Populate Modal
                 document.getElementById('adminDetailPhotoImg').src = photo.image_url;
                 document.getElementById('adminDetailPhotoTitle').value = photo.title || '';
-                document.getElementById('adminDetailPhotoAuthor').textContent = displayId;
+                document.getElementById('adminDetailPhotoAuthor').innerHTML = `${displayId}${officialBadge}`;
 
                 // Date display below author
                 const dateObj = new Date(photo.created_at);
@@ -2792,7 +2857,7 @@
 
             try {
                 const { data: photos, error } = await supabase.from('posts')
-                    .select('*, profiles(username, role)')
+                    .select('*, profiles(*)')
                     .is('deleted_at', null)
                     .order('created_at', { ascending: false });
                 if (error) throw error;
@@ -2807,6 +2872,7 @@
                     const tr = document.createElement('tr');
                     const profile = Array.isArray(photo.profiles) ? photo.profiles[0] : (photo.profiles || {});
                     const author = profile.username ? `@${profile.username}` : 'Unknown';
+                    const officialBadge = profile.is_verified ? ' <span class="badge-official">OFFICIAL</span>' : '';
                     const visBadge = photo.is_public ? '<span class="badge badge-public">Public</span>' : '<span class="badge badge-private">Private</span>';
 
                     tr.innerHTML = `

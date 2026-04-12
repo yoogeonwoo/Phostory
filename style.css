@@ -2078,7 +2078,22 @@ body {
 }
 
 .badge-admin { background-color: #fdf2f8; color: #db2777; }
-.badge-user { background-color: #f3f4f6; color: #6b7280; }
+.role-badge-floating.role-user { background-color: #f1f5f9; color: #64748b; }
+
+/* Official Badge Styling */
+.badge-official {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+    margin-left: 6px;
+    display: inline-block;
+}
 .badge-public { background-color: #ecfdf5; color: #059669; }
 .badge-private { background-color: #fffbeb; color: #d97706; }
 
